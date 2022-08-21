@@ -79,7 +79,7 @@ std::vector<XrSwapchainImageVulkan2KHR> RND_EnumerateSwapchainImages(XrSwapchain
 }
 
 void RND_InitRendering() {
-	xrSessionHandle = XR_CreateSession(vkSharedInstance, vkSharedDevice, vkSharedPhysicalDevice);
+	xrSessionHandle = XR_CreateSession(currRuntime == STEAMVR_RUNTIME ? topVkInstance : vkSharedInstance, vkSharedDevice, vkSharedPhysicalDevice);
 	xrViewConfs = XR_CreateViewConfiguration();
 	xrSwapchains[0] = RND_CreateSwapchain(xrSessionHandle, xrViewConfs[0]);
 	xrSwapchains[1] = RND_CreateSwapchain(xrSessionHandle, xrViewConfs[1]);
@@ -91,6 +91,9 @@ void RND_InitRendering() {
 }
 
 void RND_BeginFrame() {
+	if (xrSessionHandle == XR_NULL_HANDLE)
+		RND_InitRendering();
+
 	XrFrameWaitInfo waitFrameInfo = { XR_TYPE_FRAME_WAIT_INFO};
 	checkXRResult(xrWaitFrame(xrSessionHandle, &waitFrameInfo, &frameState), "Failed to wait for next frame!");
 
@@ -165,13 +168,14 @@ void RND_CopyVulkanTexture(VkCommandBuffer copyCMDBuffer, VkImage sourceImage, V
 	device_dispatch[GetKey(copyCMDBuffer)].CmdPipelineBarrier(copyCMDBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &optimalFormatBarrier);
 }
 
+uint32_t alternateIndex = 0;
 
 void RND_RenderFrame(XrSwapchain xrSwapchain, VkCommandBuffer copyCmdBuffer, VkImage copyImage) {
 	if (!beganRendering) return;
 
-	xrSwapchain = xrSwapchains[0];
+	xrSwapchain = xrSwapchains[alternateIndex];
 	
-	if (frameState.shouldRender && false) {
+	if (frameState.shouldRender) {
 		RND_UpdateViews();
 		if (frameViewState.viewStateFlags & (XR_VIEW_STATE_POSITION_VALID_BIT | XR_VIEW_STATE_ORIENTATION_VALID_BIT)) {
 			uint32_t swapchainImageIndex = 0;
@@ -183,13 +187,15 @@ void RND_RenderFrame(XrSwapchain xrSwapchain, VkCommandBuffer copyCmdBuffer, VkI
 				checkXRResult(waitResult, "Failed to wait for swapchain image!");
 			}
 
+			//RND_CopyVulkanTexture(copyCmdBuffer, copyImage, xrSwapchainImages[alternateIndex][swapchainImageIndex].image);
+
 			float leftHalfFOV = glm::degrees(frameViews[0].fov.angleLeft);
 			float rightHalfFOV = glm::degrees(frameViews[0].fov.angleRight);
 			float upHalfFOV = glm::degrees(frameViews[0].fov.angleUp);
 			float downHalfFOV = glm::degrees(frameViews[0].fov.angleDown);
 
-			float horizontalHalfFOV = (abs(frameViews[0].fov.angleLeft) + abs(frameViews[0].fov.angleRight)) * 0.5;
-			float verticalHalfFOV = (abs(frameViews[0].fov.angleUp) + abs(frameViews[0].fov.angleDown)) * 0.5;
+			float horizontalHalfFOV = (float)(abs(frameViews[0].fov.angleLeft) + abs(frameViews[0].fov.angleRight)) * 0.5;
+			float verticalHalfFOV = (float)(abs(frameViews[0].fov.angleUp) + abs(frameViews[0].fov.angleDown)) * 0.5;
 
 			for (size_t i = 0; i < frameProjectionViews.size(); i++) {
 				frameProjectionViews[i].pose = frameViews[i].pose;
@@ -212,9 +218,13 @@ void RND_RenderFrame(XrSwapchain xrSwapchain, VkCommandBuffer copyCmdBuffer, VkI
 		}
 		checkXRResult(xrReleaseSwapchainImage(xrSwapchain, NULL), "Failed to release OpenXR swapchain image!");
 	}
+	alternateIndex = alternateIndex == 0 ? 1 : 0;
 }
 
 void RND_EndFrame() {
+	if (xrSessionHandle == XR_NULL_HANDLE)
+		RND_InitRendering();
+
 	XrFrameEndInfo frameEndInfo = { XR_TYPE_FRAME_END_INFO };
 	frameEndInfo.displayTime = frameState.predictedDisplayTime;
 	frameEndInfo.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
@@ -240,8 +250,12 @@ VK_LAYER_EXPORT VkResult VKAPI_CALL Layer_QueuePresentKHR(VkQueue queue, const V
 		scoped_lock l(global_lock);
 		result = device_dispatch[GetKey(queue)].QueuePresentKHR(queue, pPresentInfo);
 	}
-	if (beganRendering) RND_EndFrame();
-	RND_BeginFrame();
-	beganRendering = true;
+
+	if (xrSessionHandle != VK_NULL_HANDLE) {
+		if (beganRendering) RND_EndFrame();
+		RND_BeginFrame();
+		beganRendering = true;
+	}
+
 	return result;
 }

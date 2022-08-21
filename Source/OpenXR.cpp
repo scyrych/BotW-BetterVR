@@ -1,5 +1,7 @@
 #include "layer.h"
 
+OpenXRRuntime currRuntime = UNKNOWN;
+
 XrInstance xrSharedInstance = XR_NULL_HANDLE;
 XrSystemId xrSharedSystemId = XR_NULL_SYSTEM_ID;
 XrSession xrSharedSession = XR_NULL_HANDLE;
@@ -121,18 +123,33 @@ void XR_initInstance() {
 	xrMaxSwapchainHeight = xrSystemProperties.graphicsProperties.maxSwapchainImageHeight;
 	xrSupportsOrientational = xrSystemProperties.trackingProperties.orientationTracking;
 	xrSupportsPositional = xrSystemProperties.trackingProperties.positionTracking;
-	
-	
+
+	XrInstanceProperties properties = { XR_TYPE_INSTANCE_PROPERTIES };
+	checkXRResult(xrGetInstanceProperties(xrSharedInstance, &properties), "Failed to get runtime details using xrGetInstanceProperties!");
+	std::string runtimeUsed = properties.runtimeName;
+	if (runtimeUsed == "Oculus") {
+		currRuntime = OCULUS_RUNTIME;
+	}
+	else if (runtimeUsed == "SteamVR") {
+		currRuntime = STEAMVR_RUNTIME;
+	}
+	else {
+		std::string errorMsg = std::format("[ERROR] Using an unsupported OpenXR runtime: {}!", runtimeUsed);
+		checkXRResult(XR_ERROR_API_VERSION_UNSUPPORTED, errorMsg.c_str());
+	}
+
+
 	auto xrViewConf = XR_CreateViewConfiguration();
 
 	// Print configuration used, mostly for debugging purposes
 	logPrint("Acquired system to be used:");
-	logPrint(std::string(" - System Name: ") + xrSystemProperties.systemName);
-	logPrint(std::string(" - Supports Mutable FOV: ") + (xrSupportsFovMutable ? "Yes" : "No"));
-	logPrint(std::string(" - Supports Orientation Tracking: ") + (xrSystemProperties.trackingProperties.orientationTracking ? "Yes" : "No"));
-	logPrint(std::string(" - Supports Positional Tracking: ") + (xrSystemProperties.trackingProperties.positionTracking ? "Yes" : "No"));
-	logPrint(std::string(" - Supports Max Swapchain Width: ") + std::to_string(xrSystemProperties.graphicsProperties.maxSwapchainImageWidth));
-	logPrint(std::string(" - Supports Max Swapchain Height: ") + std::to_string(xrSystemProperties.graphicsProperties.maxSwapchainImageHeight));
+	logPrint(std::format(" - System Name: ") + xrSystemProperties.systemName);
+	logPrint(std::format(" - Runtime Name: {}", properties.runtimeName));
+	logPrint(std::format(" - Runtime Version: {}.{}.{}", XR_VERSION_MAJOR(properties.runtimeVersion), XR_VERSION_MINOR(properties.runtimeVersion), XR_VERSION_PATCH(properties.runtimeVersion)));
+	logPrint(std::format(" - Supports Mutable FOV: {}", xrSupportsFovMutable ? "Yes" : "No"));
+	logPrint(std::format(" - Supports Orientation Tracking: {}", xrSystemProperties.trackingProperties.orientationTracking ? "Yes" : "No"));
+	logPrint(std::format(" - Supports Positional Tracking: {}", xrSystemProperties.trackingProperties.positionTracking ? "Yes" : "No"));
+	logPrint(std::format(" - Supports Max Swapchain Resolution: w={}, h={}", xrSystemProperties.graphicsProperties.maxSwapchainImageWidth, xrSystemProperties.graphicsProperties.maxSwapchainImageHeight));
 	logPrint(std::format(" - [Left] Max View Resolution: w={}, h={} with {} samples", xrViewConf[0].maxImageRectWidth, xrViewConf[0].maxImageRectHeight, xrViewConf[0].maxSwapchainSampleCount));
 	logPrint(std::format(" - [Right] Max View Resolution: w={}, h={}  with {} samples", xrViewConf[1].maxImageRectWidth, xrViewConf[1].maxImageRectHeight, xrViewConf[1].maxSwapchainSampleCount));
 	logPrint(std::format(" - [Left] Recommended View Resolution: w={}, h={}  with {} samples", xrViewConf[0].recommendedImageRectWidth, xrViewConf[0].recommendedImageRectHeight, xrViewConf[0].recommendedSwapchainSampleCount));
@@ -199,7 +216,7 @@ VkResult XR_CreateCompatibleVulkanInstance(PFN_vkGetInstanceProcAddr getInstance
 }
 
 VkPhysicalDevice XR_GetPhysicalDevice(VkInstance vkInstance) {
-	logPrint("Acquiring physical device...");
+	logPrint(std::format("Acquiring physical device using {} vs shared {}...", (void*)vkInstance, (void*)vkSharedInstance));
 	if (xrSharedInstance == XR_NULL_HANDLE)
 		XR_initInstance();
 
@@ -214,7 +231,7 @@ VkPhysicalDevice XR_GetPhysicalDevice(VkInstance vkInstance) {
 }
 
 VkResult XR_CreateCompatibleVulkanDevice(PFN_vkGetInstanceProcAddr getInstanceProcAddr, VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo* createInfo, const VkAllocationCallbacks* allocator, VkDevice* vkDevicePtr) {
-	logPrint("Creating OpenXR-compatible Vulkan device...");
+	logPrint(std::format("Creating OpenXR-compatible Vulkan device using physical device {} vs shared {}...", (void*)physicalDevice, (void*)vkSharedPhysicalDevice));
 	if (xrSharedInstance == XR_NULL_HANDLE)
 		XR_initInstance();
 
@@ -224,7 +241,7 @@ VkResult XR_CreateCompatibleVulkanDevice(PFN_vkGetInstanceProcAddr getInstancePr
 	vkCreateDeviceInfo.systemId = xrSharedSystemId;
 	vkCreateDeviceInfo.createFlags = 0;
 	vkCreateDeviceInfo.pfnGetInstanceProcAddr = getInstanceProcAddr;
-	vkCreateDeviceInfo.vulkanPhysicalDevice = physicalDevice;
+	vkCreateDeviceInfo.vulkanPhysicalDevice = XR_GetPhysicalDevice(vkSharedInstance);
 	vkCreateDeviceInfo.vulkanCreateInfo = createInfo;
 	vkCreateDeviceInfo.vulkanAllocator = NULL;
 	XrResult createDeviceResult = func_xrCreateVulkanDeviceKHR(xrSharedInstance, &vkCreateDeviceInfo, vkDevicePtr, &result);
@@ -259,7 +276,7 @@ XrSession XR_CreateSession(VkInstance vkInstance, VkDevice vkDevice, VkPhysicalD
 	logPrint("Creating the OpenXR session...");
 	
 	XrGraphicsBindingVulkan2KHR xrVulkanBindings = { XR_TYPE_GRAPHICS_BINDING_VULKAN2_KHR };
-	xrVulkanBindings.instance = topVkInstance;
+	xrVulkanBindings.instance = vkInstance;
 	xrVulkanBindings.device = vkDevice;
 	xrVulkanBindings.physicalDevice = vkPhysicalDevice;
 	xrVulkanBindings.queueFamilyIndex = 0;

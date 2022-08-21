@@ -69,3 +69,20 @@ static inline void* dispatch_key_from_handle(const void* dispatch_handle) {
 	// This ensures that all objects of a specific level (device or instance) will use the same dispatch table
 	return *(void**)dispatch_handle;
 }
+
+
+static std::vector<const char*> modifyExtensions(uint32_t* extCount, const char** origExt, std::vector<std::string>* mutateableNewExts) {
+	for (uint32_t i = 0; i < *extCount; i++) {
+		if (std::find(mutateableNewExts->begin(), mutateableNewExts->end(), origExt[i]) == mutateableNewExts->end()) {
+			mutateableNewExts->emplace_back(origExt[i]);
+		}
+	}
+
+	std::vector<const char*> cstrArray(mutateableNewExts->size());
+	*extCount = (uint32_t)mutateableNewExts->size();
+	for (std::string& extensionStr : *mutateableNewExts) {
+		cstrArray.push_back(extensionStr.data());
+	}
+
+	origExt = cstrArray.data();
+}

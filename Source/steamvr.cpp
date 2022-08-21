@@ -1,10 +1,7 @@
 #include "layer.h"
 
-// #define ENABLE_FUNC_LOGGING
-
 std::list<VkInstance> steamInstances;
 std::list<VkDevice> steamDevices;
-HMODULE vulkanModule = NULL;
 
 // Original functions
 PFN_vkCreateInstance orig_CreateInstance = nullptr;
@@ -107,7 +104,7 @@ PFN_vkVoidFunction VKAPI_CALL SteamVRHook_GetInstanceProcAddr(VkInstance instanc
 	HOOK_STEAMVR_FUNC(DestroyInstance, top_InstanceProcAddr(instance, pName));
 	HOOK_STEAMVR_FUNC(DestroyDevice, top_InstanceProcAddr(instance, pName));
 
-	HOOK_STEAMVR_FUNC(EnumeratePhysicalDevices, Layer_EnumeratePhysicalDevices);
+	// HOOK_STEAMVR_FUNC(EnumeratePhysicalDevices, Layer_EnumeratePhysicalDevices);
 
 	HOOK_STEAMVR_FUNC(GetInstanceProcAddr, saved_GetInstanceProcAddr);
 	HOOK_STEAMVR_FUNC(GetDeviceProcAddr, SteamVRHook_GetDeviceProcAddr);

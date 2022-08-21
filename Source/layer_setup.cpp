@@ -29,11 +29,18 @@ VK_LAYER_EXPORT VkResult VKAPI_CALL Layer_CreateInstance(const VkInstanceCreateI
 	
 	// Initialize layer-specific stuff
 	logInitialize();
-	SteamVRHook_initialize();
+	SetEnvironmentVariableA("VK_INSTANCE_LAYERS", NULL);
+	XR_initInstance();
+	if (currRuntime == STEAMVR_RUNTIME) {
+		SteamVRHook_initialize();
+	}
+	else {
+		OculusVRHook_initialize(const_cast<VkInstanceCreateInfo*>(pCreateInfo));
+	}
 
 	// Call vkCreateInstance
 	saved_GetInstanceProcAddr = next_GetInstanceProcAddr;
-	VkResult result = XR_CreateCompatibleVulkanInstance(SteamVRHook_GetInstanceProcAddr, pCreateInfo, pAllocator, pInstance);
+	VkResult result = XR_CreateCompatibleVulkanInstance(currRuntime == STEAMVR_RUNTIME ? SteamVRHook_GetInstanceProcAddr : OculusVRHook_GetInstanceProcAddr, pCreateInfo, pAllocator, pInstance);
 	if (result != VK_SUCCESS)
 		return result;
 
@@ -69,41 +76,98 @@ VK_LAYER_EXPORT void VKAPI_CALL Layer_DestroyInstance(VkInstance instance, const
 
 bool in_XR_GetPhysicalDevice = false;
 VK_LAYER_EXPORT VkResult VKAPI_CALL Layer_EnumeratePhysicalDevices(VkInstance instance, uint32_t* pPhysicalDeviceCount, VkPhysicalDevice* pPhysicalDevices) {
-	if (in_XR_GetPhysicalDevice) {
-		VkResult result = VK_SUCCESS;
-		{
-			scoped_lock l(global_lock);
-			result = instance_dispatch[GetKey(instance)].EnumeratePhysicalDevices(instance, pPhysicalDeviceCount, pPhysicalDevices);
-		}
-		return result;
-	}
-	else {
-		uint32_t physicalCount = 0;
-		{
-			scoped_lock l(global_lock);
-			instance_dispatch[GetKey(vkSharedInstance)].EnumeratePhysicalDevices(vkSharedInstance, &physicalCount, nullptr);
-		}
-		std::vector<VkPhysicalDevice> physicalDevicesLocal;
-		physicalDevicesLocal.resize(physicalCount);
-		{
-			scoped_lock l(global_lock);
-			instance_dispatch[GetKey(vkSharedInstance)].EnumeratePhysicalDevices(vkSharedInstance, &physicalCount, physicalDevicesLocal.data());
-		}
-		// fixme: actually use the device returned and don't pick the first one!
-		in_XR_GetPhysicalDevice = true;
-		VkPhysicalDevice xrPhysicalDevice = XR_GetPhysicalDevice(vkSharedInstance);
-		in_XR_GetPhysicalDevice = false;
+	if (!in_XR_GetPhysicalDevice) {
 		if (pPhysicalDevices == nullptr) {
 			*pPhysicalDeviceCount = 1;
-			return VK_SUCCESS;
 		}
 		else {
-			*pPhysicalDeviceCount = 1;
-			*pPhysicalDevices = physicalDevicesLocal.at(0);
-			vkSharedPhysicalDevice = physicalDevicesLocal.at(0);
-			return VK_SUCCESS;
+			in_XR_GetPhysicalDevice = true;
+			pPhysicalDevices[0] = XR_GetPhysicalDevice(vkSharedInstance);
+			in_XR_GetPhysicalDevice = false;
 		}
 	}
+	else {
+		if (pPhysicalDevices == nullptr) {
+			*pPhysicalDeviceCount = (uint32_t)physicalDevices.size();
+		}
+		else {
+			*pPhysicalDeviceCount = (uint32_t)physicalDevices.size();
+			logPrint(std::format("[DEBUG] Enumerate physical devices: VkInstance = {}, *count = {}", (void*)instance, *pPhysicalDeviceCount));
+			for (uint32_t i=0; i<*pPhysicalDeviceCount; i++) {
+				pPhysicalDevices[i] = physicalDevices[i];
+				logPrint(std::format(" - {}", (void*)pPhysicalDevices[i]));
+			}
+			vkSharedPhysicalDevice = pPhysicalDevices[0];
+		}
+	}
+	return VK_SUCCESS;
+	//if (pPhysicalDevices == nullptr) {
+	//	logPrint(std::format("[DEBUG] Return only one physical device!"));
+	//	*pPhysicalDeviceCount = 1;
+	//	return VK_SUCCESS;
+	//}
+	//else {
+	//	logPrint(std::format("[DEBUG] Getting physical devices using instance {}...", (void*)instance));
+	//	logPrint(std::format("[DEBUG] XR_GetPhysicalDevice: VkInstance = {}, *count = {}", (void*)instance, *pPhysicalDeviceCount));
+	//	for (uint32_t i = 0; i < *pPhysicalDeviceCount; i++) {
+	//		logPrint(std::format(" - {}", (void*)pPhysicalDevices[i]));
+	//	}
+	//	vkSharedPhysicalDevice = pPhysicalDevices[0];
+	//	return VK_SUCCESS;
+	//}
+
+	//if (in_XR_GetPhysicalDevice) {
+	//	bool nullOutput = pPhysicalDevices == nullptr;
+	//	VkResult result = VK_SUCCESS;
+	//	{
+	//		scoped_lock l(global_lock);
+	//		result = instance_dispatch[GetKey(instance)].EnumeratePhysicalDevices(instance, pPhysicalDeviceCount, pPhysicalDevices);
+	//	}
+	//	logPrint(std::format("[DEBUG] XR_GetPhysicalDevice: VkInstance = {}, *count = {}, result = {}", (void*)instance, *pPhysicalDeviceCount, (uint32_t)result));
+	//	if (!nullOutput) {
+	//		for (uint32_t i = 0; i < *pPhysicalDeviceCount; i++) {
+	//			logPrint(std::format(" - {}", (void*)pPhysicalDevices[i]));
+	//		}
+	//	}
+	//	return result;
+	//}
+	//else {
+	//	bool nullOutput = pPhysicalDevices == nullptr;
+	//	uint32_t physicalCount = 0;
+	//	{
+	//		scoped_lock l(global_lock);
+	//		instance_dispatch[GetKey(vkSharedInstance)].EnumeratePhysicalDevices(vkSharedInstance, &physicalCount, nullptr);
+	//	}
+	//	std::vector<VkPhysicalDevice> physicalDevicesLocal;
+	//	physicalDevicesLocal.resize(physicalCount);
+	//	{
+	//		scoped_lock l(global_lock);
+	//		instance_dispatch[GetKey(vkSharedInstance)].EnumeratePhysicalDevices(vkSharedInstance, &physicalCount, physicalDevicesLocal.data());
+	//	}
+	//	// fixme: actually use the device returned and don't pick the first one!
+	//	in_XR_GetPhysicalDevice = true;
+	//	VkPhysicalDevice xrPhysicalDevice = XR_GetPhysicalDevice(vkSharedInstance);
+	//	in_XR_GetPhysicalDevice = false;
+	//	if (pPhysicalDevices == nullptr) {
+	//		*pPhysicalDeviceCount = 1;
+	//		return VK_SUCCESS;
+	//	}
+	//	else {
+	//		*pPhysicalDeviceCount = 1;
+	//		*pPhysicalDevices = physicalDevicesLocal.at(0);
+	//		vkSharedPhysicalDevice = physicalDevicesLocal.at(0);
+	//		return VK_SUCCESS;
+	//	}
+	//}
+}
+
+VK_LAYER_EXPORT void VKAPI_CALL Layer_GetPhysicalDeviceFeatures(VkPhysicalDevice physicalDevice, VkPhysicalDeviceFeatures* pFeatures) {
+	logPrint(std::format("[DEBUG] XR_GetPhysicalDevice: VkPhysicalDevice = {}", (void*)physicalDevice));
+
+	PFN_vkGetPhysicalDeviceFeatures funcRet = (PFN_vkGetPhysicalDeviceFeatures)saved_GetInstanceProcAddr(vkSharedInstance, "vkGetPhysicalDeviceFeatures");
+
+	scoped_lock l(global_lock);
+	funcRet(physicalDevice, pFeatures);
 }
 
 VK_LAYER_EXPORT VkResult VKAPI_CALL Layer_CreateDevice(VkPhysicalDevice gpu, const VkDeviceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDevice* pDevice) {
@@ -121,7 +185,7 @@ VK_LAYER_EXPORT VkResult VKAPI_CALL Layer_CreateDevice(VkPhysicalDevice gpu, con
 	// Call vkCreateDevice
 	saved_GetInstanceProcAddr = next_GetInstanceProcAddr;
 	saved_GetDeviceProcAddr = next_GetDeviceProcAddr;
-	VkResult result = XR_CreateCompatibleVulkanDevice(SteamVRHook_GetInstanceProcAddr, gpu, pCreateInfo, pAllocator, pDevice);
+	VkResult result = XR_CreateCompatibleVulkanDevice(currRuntime == STEAMVR_RUNTIME ? SteamVRHook_GetInstanceProcAddr : OculusVRHook_GetInstanceProcAddr, gpu, pCreateInfo, pAllocator, pDevice);
 	if (result != VK_SUCCESS)
 		return result;
 
@@ -175,6 +239,17 @@ VkResult Layer_EnumerateInstanceVersion(const VkEnumerateInstanceVersionChain* p
 // https://github.dev/crosire/reshade/tree/main/source/vulkan
 // https://github.dev/baldurk/renderdoc/tree/v1.x/renderdoc/driver/vulkan
 VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL Layer_GetInstanceProcAddr(VkInstance instance, const char* pName) {
+	
+	PFN_vkVoidFunction voidFunc = nullptr;
+	if (instance != nullptr) {
+		scoped_lock l(global_lock);
+		voidFunc = instance_dispatch[GetKey(instance)].GetInstanceProcAddr(instance, pName);
+		logPrint(std::format("[DEBUG] Layer_GetInstanceProcAddr {} using {}, result = {}", pName, (void*)instance, (void*)voidFunc));
+	}
+	else {
+		logPrint(std::format("[DEBUG] Layer_GetInstanceProcAddr {} using no instance", pName));
+	}
+	
 	HOOK_PROC_FUNC(CreateInstance);
 	HOOK_PROC_FUNC(DestroyInstance);
 	HOOK_PROC_FUNC(CreateDevice);
@@ -182,7 +257,8 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL Layer_GetInstanceProcAddr(VkInstan
 
 	// todo: sort these out later
 	//HOOK_PROC_FUNC(EnumerateInstanceVersion);
-	HOOK_PROC_FUNC(EnumeratePhysicalDevices);
+	//if (vkSharedInstance != nullptr)
+	//	HOOK_PROC_FUNC(EnumeratePhysicalDevices);
 
 	// Hook render functions for framebuffer tracking
 	// todo: sort out which ones can't be called using a device
@@ -221,7 +297,7 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL Layer_GetDeviceProcAddr(VkDevice d
 	HOOK_PROC_FUNC(QueueSubmit);
 	HOOK_PROC_FUNC(QueuePresentKHR);
 
-	HOOK_PROC_FUNC(EnumeratePhysicalDevices);
+	//HOOK_PROC_FUNC(EnumeratePhysicalDevices);
 
 	// Required to self-intercept for compatibility
 	HOOK_PROC_FUNC(GetDeviceProcAddr);

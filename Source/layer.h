@@ -11,21 +11,11 @@ void* GetKey(DispatchableType inst) {
 	return *(void**)inst;
 }
 
-static std::vector<const char*> modifyExtensions(uint32_t* extCount, const char** origExt, std::vector<std::string>* mutateableNewExts) {
-	for (uint32_t i = 0; i < *extCount; i++) {
-		if (std::find(mutateableNewExts->begin(), mutateableNewExts->end(), origExt[i]) == mutateableNewExts->end()) {
-			mutateableNewExts->emplace_back(origExt[i]);
-		}
-	}
-
-	std::vector<const char*> cstrArray(mutateableNewExts->size());
-	*extCount = (uint32_t)mutateableNewExts->size();
-	for (std::string& extensionStr : *mutateableNewExts) {
-		cstrArray.push_back(extensionStr.data());
-	}
-
-	origExt = cstrArray.data();
-}
+enum OpenXRRuntime {
+	UNKNOWN,
+	OCULUS_RUNTIME,
+	STEAMVR_RUNTIME
+};
 
 // layer book-keeping information, to store dispatch tables by key
 extern std::map<void*, VkLayerInstanceDispatchTable> instance_dispatch;
@@ -42,9 +32,12 @@ extern XrSystemId xrSharedSystemId;
 extern XrSession xrSharedSession;
 
 extern std::list<VkInstance> steamInstances;
-extern VkInstance topVkInstance;
 extern std::list<VkDevice> steamDevices;
+extern std::list<VkInstance> oculusInstances;
+extern std::list<VkDevice> oculusDevices;
+extern VkInstance topVkInstance;
 extern VkDevice topVkDevice;
+extern OpenXRRuntime currRuntime;
 
 // hook functions
 //VK_LAYER_EXPORT VkResult VKAPI_CALL Layer_CreateRenderPass(VkDevice device, const VkRenderPassCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkRenderPass* pRenderPass);
@@ -65,6 +58,7 @@ void checkXRResult(XrResult result, const char* errorMessage = nullptr);
 void checkVkResult(VkResult result, const char* errorMessage = nullptr);
 
 // xr functions
+void XR_initInstance();
 void XR_GetSupportedVulkanVersions(XrVersion* minVulkanVersion, XrVersion* maxVulkanVersion);
 VkResult XR_CreateCompatibleVulkanInstance(PFN_vkGetInstanceProcAddr getInstanceProcAddr, const VkInstanceCreateInfo* vulkanCreateInfo, const VkAllocationCallbacks* vulkanAllocator, VkInstance* vkInstancePtr);
 VkPhysicalDevice XR_GetPhysicalDevice(VkInstance vkInstance);
@@ -89,6 +83,13 @@ void SteamVRHook_initialize();
 PFN_vkVoidFunction VKAPI_CALL SteamVRHook_GetInstanceProcAddr(VkInstance instance, const char* pName);
 PFN_vkVoidFunction VKAPI_CALL SteamVRHook_GetDeviceProcAddr(VkDevice device, const char* pName);
 
+// OculusVR hook
+extern std::vector<VkPhysicalDevice> physicalDevices;
+void OculusVRHook_initialize(VkInstanceCreateInfo* createInfo);
+PFN_vkVoidFunction VKAPI_CALL OculusVRHook_GetInstanceProcAddr(VkInstance instance, const char* pName);
+PFN_vkVoidFunction VKAPI_CALL OculusVRHook_GetDeviceProcAddr(VkDevice device, const char* pName);
+
+
 // framebuffer functions
 VK_LAYER_EXPORT VkResult VKAPI_CALL Layer_CreateImage(VkDevice device, const VkImageCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImage* pImage);
 VK_LAYER_EXPORT VkResult VKAPI_CALL Layer_CreateImageView(VkDevice device, const VkImageViewCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImageView* pView);
@@ -101,6 +102,7 @@ VK_LAYER_EXPORT void VKAPI_CALL Layer_CmdEndRenderPass(VkCommandBuffer commandBu
 // layer_setup functions
 VK_LAYER_EXPORT VkResult VKAPI_CALL Layer_EnumeratePhysicalDevices(VkInstance instance, uint32_t* pPhysicalDeviceCount, VkPhysicalDevice* pPhysicalDevices);
 
+static HMODULE vulkanModule = NULL;
 
 static bool initializeLayer() {
 	if (!cemuInitialize()) {
