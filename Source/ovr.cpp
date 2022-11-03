@@ -28,7 +28,6 @@ extern PFN_vkGetDeviceProcAddr saved_GetDeviceProcAddr;
 //#define LOG_ERROR_FUNC_RESOLVE(resolveFuncType, resolveFunc, object, name) \
 //if (resolveFunc(object, name) == nullptr) logPrint(std::format("[GetProcAddr] Failed using {}: vkGet*ProcAddr(object={}, name={}) returned {}", resolveFuncType, (void*)object, name, (void*)resolveFunc(object, name));\
 //resolveFunc(object, name);
-
 #define logDebugPrintAddr(func) logPrint(func);
 #else
 #define LOG_FUNC_RESOLVE(func, funcName) resolveFunc(object, name);

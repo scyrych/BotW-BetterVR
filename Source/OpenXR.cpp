@@ -272,13 +272,42 @@ std::array<XrViewConfigurationView, 2> XR_CreateViewConfiguration() {
 	return xrViewConf;
 }
 
+// Unique identifier for physical devices
+#define PHYS_TRAMP_MAGIC_NUMBER 0x10ADED020210ADEDUL
+
+// Per enumerated PhysicalDevice structure, used to wrap in trampoline code and
+// also same structure used to wrap in terminator code
+struct loader_physical_device_tramp {
+	struct loader_instance_dispatch_table* disp;  // must be first entry in structure
+	struct loader_instance* this_instance;
+	uint64_t magic;             // Should be PHYS_TRAMP_MAGIC_NUMBER
+	VkPhysicalDevice phys_dev;  // object from layers/loader terminator
+};
+
+
+static inline VkPhysicalDevice loader_unwrap_physical_device(VkPhysicalDevice physicalDevice) {
+	struct loader_physical_device_tramp* phys_dev = (struct loader_physical_device_tramp*)physicalDevice;
+	if (PHYS_TRAMP_MAGIC_NUMBER != phys_dev->magic) {
+		return VK_NULL_HANDLE;
+	}
+	return phys_dev->phys_dev;
+}
+
+
 XrSession XR_CreateSession(VkInstance vkInstance, VkDevice vkDevice, VkPhysicalDevice vkPhysicalDevice) {
 	logPrint("Creating the OpenXR session...");
+
+	VkPhysicalDevice physDev1 = loader_unwrap_physical_device(vkPhysicalDevice);
+	VkPhysicalDevice physDev2 = loader_unwrap_physical_device(layerPhysicalDevices.front());
+	VkPhysicalDevice physDev3 = loader_unwrap_physical_device(physicalDevices.front());
+	//VkPhysicalDevice physDev4 = loader_unwrap_physical_device(vkSharedPhysicalDevice);
+	assert(physDev1 != VK_NULL_HANDLE || physDev2 != VK_NULL_HANDLE || physDev3 != VK_NULL_HANDLE);
+
 	
 	XrGraphicsBindingVulkan2KHR xrVulkanBindings = { XR_TYPE_GRAPHICS_BINDING_VULKAN2_KHR };
 	xrVulkanBindings.instance = vkInstance;
 	xrVulkanBindings.device = vkDevice;
-	xrVulkanBindings.physicalDevice = physicalDevices.front();
+	xrVulkanBindings.physicalDevice = vkPhysicalDevice;
 	xrVulkanBindings.queueFamilyIndex = 0;
 	xrVulkanBindings.queueIndex = 0;
 
