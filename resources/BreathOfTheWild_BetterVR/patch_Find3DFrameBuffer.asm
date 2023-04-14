@@ -1,4 +1,4 @@
-[BotW_Find3DFrameBuffer_V208]
+[BetterVR_Find3DFrameBuffer_V208]
 moduleMatches = 0x6267BFD0
 
 .origin = codecave

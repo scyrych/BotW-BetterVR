@@ -177,13 +177,23 @@ void OpenXR::CreateSession(const XrGraphicsBindingD3D12KHR& d3d12Binding) {
     checkXRResult(xrCreateReferenceSpace(m_session, &headSpaceCreateInfo, &m_headSpace), "Failed to create reference space for head!");
 }
 
-void OpenXR::UpdatePoses(EyeSide side, XrTime predictedDisplayTime) {
+bool firstInit = true;
+void OpenXR::UpdateTime(EyeSide side, XrTime predictedDisplayTime) {
+    if (firstInit) {
+        firstInit = false;
+        m_frameTimes[std::to_underlying(EyeSide::LEFT)] = predictedDisplayTime;
+        m_frameTimes[std::to_underlying(EyeSide::RIGHT)] = predictedDisplayTime;
+        return;
+    }
+    m_frameTimes[std::to_underlying(side)] = predictedDisplayTime;
+}
+
+void OpenXR::UpdatePoses(EyeSide side) {
     XrSpaceLocation spaceLocation = { XR_TYPE_SPACE_LOCATION };
-    if (XrResult result = xrLocateSpace(m_headSpace, m_stageSpace, predictedDisplayTime, &spaceLocation); XR_SUCCEEDED(result)) {
+    if (XrResult result = xrLocateSpace(m_headSpace, m_stageSpace, m_frameTimes[std::to_underlying(side)], &spaceLocation); XR_SUCCEEDED(result)) {
         if (result != XR_ERROR_TIME_INVALID) {
             checkXRResult(result, "Failed to get space location!");
         }
-        //Log::print("Updating poses with time {}...", predictedDisplayTime);
     }
     if ((spaceLocation.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) == 0)
         return;
@@ -191,15 +201,15 @@ void OpenXR::UpdatePoses(EyeSide side, XrTime predictedDisplayTime) {
     std::array<XrView, 2> views = { XrView{ XR_TYPE_VIEW }, XrView{ XR_TYPE_VIEW } };
     XrViewLocateInfo viewLocateInfo = { XR_TYPE_VIEW_LOCATE_INFO };
     viewLocateInfo.viewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
-    viewLocateInfo.displayTime = predictedDisplayTime;
+    viewLocateInfo.displayTime = m_frameTimes[std::to_underlying(side)];
     viewLocateInfo.space = m_headSpace;
     XrViewState viewState = { XR_TYPE_VIEW_STATE };
     uint32_t viewCount = views.size();
     checkXRResult(xrLocateViews(m_session, &viewLocateInfo, &viewState, viewCount, &viewCount, views.data()), "Failed to get view information!");
     if ((viewState.viewStateFlags & XR_VIEW_STATE_ORIENTATION_VALID_BIT) == 0)
         return;
-
-    m_updatedViews[std::to_underlying(side)] = { predictedDisplayTime, views[std::to_underlying(side)] };
+    
+    m_updatedViews[std::to_underlying(side)] = views[std::to_underlying(side)];
 }
 
 void OpenXR::ProcessEvents() {

@@ -1,24 +1,10 @@
-[BotW_BetterVR_V208]
+[BetterVR_UpdateCamera_V208]
 moduleMatches = 0x6267BFD0
 
 .origin = codecave
 
-; Additional settings
-startGraphicPackData:
-ModeSetting:
-.int $mode
-EyeSeparationSetting:
-.float $eyeSeparation
-HeadPositionSensitivitySetting:
-.float $headPositionSensitivity
-HeightPositionOffsetSetting:
-.float $heightPositionOffset
-HUDScaleSetting:
-.float $hudScale
-MenuScaleSetting:
-.float $menuScale
 
-
+data_cameraMatrixIn:
 oldPosX: ; Input for the calculations done in the Vulkan layer
 .float 0.0
 oldPosY:
@@ -34,6 +20,7 @@ oldTargetZ:
 oldFOV:
 .float 0.0
 
+data_cameraMatrixOut:
 newPosX: ; New post-calculated values from the Vulkan layer
 .float 0.0
 newPosY:
@@ -60,6 +47,10 @@ newAspectRatio:
 CAM_OFFSET_POS = 0x5C0
 CAM_OFFSET_TARGET = 0x5CC
 CAM_OFFSET_FOV = 0x5E4
+
+
+tempStuff:
+.int 0
 
 calcCameraMatrix:
 lwz r0, 0x1c(r1) ; original instruction
@@ -88,13 +79,23 @@ lfs f0, CAM_OFFSET_FOV(r31)
 lis r7, oldFOV@ha
 stfs f0, oldFOV@l(r7)
 
+lis r7, tempStuff@ha
+stw r31, tempStuff@l(r7)
+
+
 lis r7, continueCodeAddr@ha
 addi r7, r7, continueCodeAddr@l
-lis r30, startGraphicPackData@ha
-addi r30, r30, startGraphicPackData@l
-b import.coreinit.cameraHookUpdate
+lis r30, data_cameraMatrixIn@ha
+addi r30, r30, data_cameraMatrixIn@l
+lis r31, data_cameraMatrixOut@ha
+addi r31, r31, data_cameraMatrixOut@l
+b import.coreinit.hook_UpdateCamera
 
 continueCodeAddr:
+lis r7, tempStuff@ha
+lwz r31, tempStuff@l(r7)
+
+
 lis r7, newPosX@ha
 lfs f0, newPosX@l(r7)
 stfs f0, CAM_OFFSET_POS(r31)
@@ -144,29 +145,8 @@ blr
 
 0x02E57FF0 = bla changeCameraRotation
 
-updateEndOfFrame:
-li r4, -1 ; Execute the instruction that got replaced
 
-lis r5, startGraphicPackData@ha
-addi r5, r5, startGraphicPackData@l
-b import.coreinit.cameraHookFrame
-
-0x031FAAF0 = bla updateEndOfFrame
-
-createNewScreenHook:
-mflr r0
-
-lis r8, continueFromScreenHook@ha
-addi r8, r8, continueFromScreenHook@l
-b import.coreinit.cameraHookInterface
-
-0x0305EAE8 = b createNewScreenHook
-0x0305EAEC = continueFromScreenHook:
-
-0x0386D010 = lis r28, newAspectRatio@ha
-0x0386D014 = lfs f12, newAspectRatio@l(r28)
-0x0386D018 = b continueFromChangeAspectRatio
-0x0386D024 = continueFromChangeAspectRatio:
-
-0x101BF8DC = .float $linkOpacity
-0x10216594 = .float $cameraDistance
+#0x0386D010 = lis r28, newAspectRatio@ha
+#0x0386D014 = lfs f12, newAspectRatio@l(r28)
+#0x0386D018 = b continueFromChangeAspectRatio
+#0x0386D024 = continueFromChangeAspectRatio:

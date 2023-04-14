@@ -1,5 +1,9 @@
 #pragma once
 
+#include <string>
+#include <type_traits>
+#include <atomic>
+
 #include <Windows.h>
 #include <winrt/base.h>
 
@@ -9,7 +13,6 @@
 
 #define VK_USE_PLATFORM_WIN32_KHR
 #define VK_NO_PROTOTYPES
-
 #include <vulkan/vk_layer.h>
 #include <vulkan/vulkan_core.h>
 
@@ -31,10 +34,42 @@ using Microsoft::WRL::ComPtr;
 
 #define XR_USE_PLATFORM_WIN32
 #define XR_USE_GRAPHICS_API_D3D12
-
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
 
-#include <type_traits>
+
+struct data_VRSettingsIn {
+    int32_t modeSetting;
+    float eyeSeparationSetting;
+    float headPositionSensitivitySetting;
+    float heightPositionOffsetSetting;
+    float hudScaleSetting;
+    float menuScaleSetting;
+};
+
+struct data_VRCameraIn {
+    float posX;
+    float posY;
+    float posZ;
+    float targetX;
+    float targetY;
+    float targetZ;
+    float fov;
+};
+
+struct data_VRCameraOut {
+    float posX;
+    float posY;
+    float posZ;
+    float targetX;
+    float targetY;
+    float targetZ;
+    float rotX;
+    float rotY;
+    float rotZ;
+    float fov;
+    float aspectRatio;
+};
 
 #include "utils/logger.h"
+#include "cemu.h"

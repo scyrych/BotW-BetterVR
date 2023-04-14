@@ -51,6 +51,9 @@ target_sources(BetterVR_Layer PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/hooking/framebuffer.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/hooking/layer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/hooking/layer.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/hooking/cemu_hooks.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/hooking/camera.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/hooking/settings.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/d3d12.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/d3d12.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering/renderer.cpp

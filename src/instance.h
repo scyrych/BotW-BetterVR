@@ -1,5 +1,6 @@
 #include <pch.h>
 
+#include "hooking/cemu_hooks.h"
 #include "rendering/d3d12.h"
 #include "rendering/openxr.h"
 #include "rendering/renderer.h"
@@ -31,6 +32,7 @@ public:
     std::unique_ptr<OpenXR> XR;
     std::unique_ptr<RND_D3D12> D3D12;
     std::unique_ptr<RND_Vulkan> VK;
+    std::unique_ptr<CemuHooks> Hooks;
 
 private:
     VRManager() {

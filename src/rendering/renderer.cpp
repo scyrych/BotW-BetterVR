@@ -25,9 +25,11 @@ void RND_Renderer::StartFrame() {
     XrFrameBeginInfo beginFrameInfo = { XR_TYPE_FRAME_BEGIN_INFO };
     checkXRResult(xrBeginFrame(m_session, &beginFrameInfo), "Couldn't begin OpenXR frame!");
 
+    VRManager::instance().XR->UpdateTime(VRManager::instance().Hooks->s_eyeSide, m_frameState.predictedDisplayTime);
+
     // only update one at a time to do alternating eye rendering
-    VRManager::instance().XR->UpdatePoses(OpenXR::EyeSide::LEFT, m_frameState.predictedDisplayTime);
-    VRManager::instance().XR->UpdatePoses(OpenXR::EyeSide::RIGHT, m_frameState.predictedDisplayTime);
+    VRManager::instance().XR->UpdatePoses(OpenXR::EyeSide::LEFT);
+    VRManager::instance().XR->UpdatePoses(OpenXR::EyeSide::RIGHT);
 
     VRManager::instance().XR->GetSwapchain(OpenXR::EyeSide::LEFT)->PrepareRendering();
     VRManager::instance().XR->GetSwapchain(OpenXR::EyeSide::RIGHT)->PrepareRendering();
@@ -46,7 +48,7 @@ void RND_Renderer::EndFrame() {
         for (uint32_t i = 0; i < m_frameProjectionViews.size(); i++) {
             OpenXR::EyeSide eye = (i == 0) ? OpenXR::EyeSide::LEFT : OpenXR::EyeSide::RIGHT;
             Swapchain* swapchain = VRManager::instance().XR->GetSwapchain(eye);
-            std::pair<XrTime, XrView> view = VRManager::instance().XR->GetPredictedView(eye);
+            XrView view = VRManager::instance().XR->GetPredictedView(eye);
 
             if (eye == OpenXR::EyeSide::LEFT) {
                 ID3D12Resource* swapchainImage = swapchain->StartRendering();
@@ -85,15 +87,15 @@ void RND_Renderer::EndFrame() {
             //
             // float horizontalHalfFOV = (float)(abs(frameViews[0].fov.angleLeft) + abs(frameViews[0].fov.angleRight)) * 0.5f;
             // float verticalHalfFOV = (float)(abs(frameViews[0].fov.angleUp) + abs(frameViews[0].fov.angleDown)) * 0.5f;
-            m_frameProjectionViews[i].pose = view.second.pose;
-            m_frameProjectionViews[i].fov = view.second.fov;
+            m_frameProjectionViews[i].pose = view.pose;
+            m_frameProjectionViews[i].fov = view.fov;
             m_frameProjectionViews[i].subImage.swapchain = swapchain->GetHandle();
             m_frameProjectionViews[i].subImage.imageRect.offset = { 0, 0 };
             m_frameProjectionViews[i].subImage.imageRect.extent = { (int32_t)swapchain->GetWidth(), (int32_t)swapchain->GetHeight() };
         }
 
         frameRenderLayer.layerFlags = NULL;
-        frameRenderLayer.space = VRManager::instance().XR->m_headSpace;
+        frameRenderLayer.space = VRManager::instance().XR->m_stageSpace;
         frameRenderLayer.viewCount = (uint32_t)m_frameProjectionViews.size();
         frameRenderLayer.views = m_frameProjectionViews.data();
         m_layers.emplace_back(reinterpret_cast<XrCompositionLayerBaseHeader*>(&frameRenderLayer));

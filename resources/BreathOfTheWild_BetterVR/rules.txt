@@ -7,7 +7,7 @@ version = 7
 
 [Default]
 $FOV = 0.872665
-$cameraDistance = 0.5 ; currently disabled
+$cameraDistance = 0.5 # currently disabled
 $linkOpacity = 1.0
 
 $mode:int = 0
@@ -15,9 +15,9 @@ $hudScale = 0.4
 $menuScale = 0.4
 $eyeSeparation = 0.067000
 
-; This changes how much moving your headset moves the in-game camera
+# This changes how much moving your headset moves the in-game camera
 $headPositionSensitivity = 2.5
-; This value gets subtracted from the camera height to make the camera look smaller
+# This value gets subtracted from the camera height to make the camera look smaller
 $heightPositionOffset = 0.0
 
 

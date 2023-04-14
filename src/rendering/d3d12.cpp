@@ -5,6 +5,7 @@
 
 #include "shader.h"
 
+#undef _DEBUG
 
 RND_D3D12::RND_D3D12() {
     UINT dxgiFactoryFlags = 0;

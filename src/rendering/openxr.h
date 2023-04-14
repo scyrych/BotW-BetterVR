@@ -23,19 +23,15 @@ public:
     } m_capabilities = {};
 
     void CreateSession(const XrGraphicsBindingD3D12KHR& d3d12Binding);
-    void UpdatePoses(EyeSide side, XrTime predictedDisplayTime);
+    std::array<XrViewConfigurationView, 2> GetViewConfigurations();
+    void UpdateTime(EyeSide side, XrTime predictedDisplayTime);
+    void UpdatePoses(EyeSide side);
     void ProcessEvents();
 
     XrSession GetSession() { return m_session; }
-
     Swapchain* GetSwapchain(EyeSide side) { return m_swapchains[std::to_underlying(side)].get(); }
-
-    std::array<XrViewConfigurationView, 2> GetViewConfigurations();
-
-    std::pair<XrTime, XrView> GetPredictedView(EyeSide side) { return m_updatedViews[std::to_underlying(side)]; };
-
+    XrView GetPredictedView(EyeSide side) { return m_updatedViews[std::to_underlying(side)]; };
     RND_Renderer* GetRenderer() { return m_renderer.get(); }
-
 private:
     XrInstance m_instance = XR_NULL_HANDLE;
     XrSystemId m_systemId = XR_NULL_SYSTEM_ID;
@@ -45,8 +41,9 @@ private:
 
     std::unique_ptr<RND_Renderer> m_renderer;
 
+    std::array<XrTime, 2> m_frameTimes = { 0, 0 };
     std::array<std::unique_ptr<Swapchain>, 2> m_swapchains;
-    std::array<std::pair<XrTime, XrView>, 2> m_updatedViews;
+    std::array<XrView, 2> m_updatedViews;
 
 
     XrDebugUtilsMessengerEXT m_debugMessengerHandle = XR_NULL_HANDLE;
