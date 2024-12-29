@@ -40,6 +40,13 @@ struct std::formatter<glm::fmat3> : std::formatter<string> {
 };
 
 template <>
+struct std::formatter<glm::fvec3> : std::formatter<string> {
+    auto format(const glm::fvec3 mtx, std::format_context& ctx) const {
+        return std::format_to(ctx.out(), "[x={}, y={}, z={}]", mtx.x, mtx.y, mtx.z);
+    }
+};
+
+template <>
 struct std::formatter<glm::fquat> : std::formatter<string> {
     auto format(const glm::fquat quat, std::format_context& ctx) const {
         return std::format_to(ctx.out(), "[w={}, x={}, y={}, z={}] (euler: x={}, y={}, z={})", quat.w, quat.x, quat.y, quat.z, glm::degrees(glm::eulerAngles(quat)).x, glm::degrees(glm::eulerAngles(quat)).y, glm::degrees(glm::eulerAngles(quat)).z);

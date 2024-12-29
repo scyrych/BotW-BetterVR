@@ -70,5 +70,7 @@ You'll need to disable the `BetterVR` graphic pack if you want to change to non-
 ### Licenses
 
 This project is licensed under the MIT license.
-It also uses [vkroots (MIT licensed)](https://github.com/Joshua-Ashton/vkroots/blob/main/LICENSES/MIT.txt).
-It also uses [imgui's Vulkan backend (MIT licensed)]().
+This repository also contains code of the following projects:
+ - [vkroots (MIT licensed)](https://github.com/Joshua-Ashton/vkroots/blob/main/LICENSES/MIT.txt)
+ - [imgui (MIT licensed)](https://github.com/ocornut/imgui/blob/master/LICENSE.txt)
+ - [ImPlot3D (MIT licensed)](https://github.com/brenocq/implot3d/blob/main/LICENSE)

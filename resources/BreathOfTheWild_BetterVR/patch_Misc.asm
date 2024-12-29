@@ -3,10 +3,13 @@ moduleMatches = 0x6267BFD0
 
 .origin = codecave
 
-;0x101BF8DC = .float $linkOpacity
+0x101BF8DC = .float 1.0
 
-0x101C0084 = .float 0.0
-0x02C0E38C = cmpw r3, r3
+; disables the opacity fade effect when it gets near the camera
+0x02C05A2C = cmpw r3, r3
+
+; 0x101C0084 = .float 0.0
+; 0x02C0E38C = cmpw r3, r3
 
 
 0x10216594 = .float $cameraDistance

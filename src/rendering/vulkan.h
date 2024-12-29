@@ -1,4 +1,5 @@
 #pragma once
+#include "openxr.h"
 #include "texture.h"
 
 using ValueVariant = std::variant<BEType<uint32_t>, BEType<int32_t>, BEType<float>, BEVec3, BEMatrix34, std::string>;
@@ -14,6 +15,8 @@ struct EntityValue {
 struct Entity {
     std::string name;
     float priority;
+    BEVec3 position;
+    glm::fquat rotation;
     std::vector<EntityValue> values;
 };
 
@@ -32,10 +35,24 @@ public:
 
         std::string m_filter;
         std::unordered_map<uint32_t, Entity> m_entities;
+        bool m_resetPlot = false;
+        bool m_disablePoints = true;
+        bool m_disableTexts = false;
+        bool m_disableRotations = true;
+        glm::fvec3 m_playerPos = {};
 
         void AddOrUpdateEntity(uint32_t actorId, const std::string& entityName, const std::string& valueName, uint32_t address, ValueVariant&& value);
-        void SetPriority(uint32_t actorId, float priority);
+        void SetPosition(uint32_t actorId, const BEVec3& ws_playerPos, const BEVec3& ws_entityPos);
+        void SetRotation(uint32_t actorId, const glm::fquat rotation);
         void RemoveEntity(uint32_t actorId);
+
+
+        void SetInGameFrustum(OpenXR::EyeSide side, glm::fvec3 position, glm::fquat rotation, XrFovf fov);
+        void SetVRFrustum(OpenXR::EyeSide side, glm::fvec3 from, XrPosef pose, XrFovf fov);
+        std::array<std::tuple<glm::fvec3, glm::fquat, XrFovf>, 2> m_inGameFrustums = {};
+        std::array<std::tuple<glm::fvec3, XrPosef, XrFovf>, 2> m_vrFrustums = {};
+
+
 
         void BeginFrame();
         void Draw3DLayerAsBackground(VkCommandBuffer cb, VkImage srcImage, float aspectRatio);
@@ -46,7 +63,6 @@ public:
         void DrawOverlayToImage(VkCommandBuffer cb, VkImage destImage);
 
     private:
-        ImGuiContext* m_context;
         VkDescriptorPool m_descriptorPool;
         VkRenderPass m_renderPass;
 
@@ -72,6 +88,7 @@ public:
     const vkroots::VkDeviceDispatch* GetDeviceDispatch() const { return m_deviceDispatch; }
 
     std::unique_ptr<ImGuiOverlay> m_imguiOverlay;
+
 private:
     VkInstance m_instance;
     VkPhysicalDevice m_physicalDevice;

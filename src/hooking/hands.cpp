@@ -105,7 +105,16 @@ void CemuHooks::updateFrames() {
         for (const auto& [actorId, actorData] : s_knownActors) {
             if (actorData.first == "GameROMPlayer") {
                 readMemory(actorData.second + offsetof(ActorWiiU, mtx), &playerPos);
-                break;
+                glm::fvec3 newPlayerPos = playerPos.getPos().getLE();
+                if (glm::distance(newPlayerPos, overlay->m_playerPos) > 25.0f) {
+                    overlay->m_resetPlot = true;
+                }
+                overlay->m_playerPos = newPlayerPos;
+            }
+            else if (actorData.first == "GameROMCamera") {
+                readMemory(actorData.second + offsetof(ActorWiiU, mtx), &playerPos);
+                glm::fvec3 newPlayerPos = playerPos.getPos().getLE();
+
             }
         }
 
@@ -125,8 +134,10 @@ void CemuHooks::updateFrames() {
             readMemory(actorPtr + offsetof(ActorWiiU, angularVelocity), &angularVelocity);
 
             if (playerPos.pos_x.getLE() != 0.0f) {
-                overlay->SetPriority(actorId, playerPos.DistanceSq(mtx));
+                overlay->SetPosition(actorId, playerPos.getPos(), mtx.getPos());
             }
+
+            overlay->SetRotation(actorId, mtx.getRotLE());
 
             overlay->AddOrUpdateEntity(actorId, actorName, "mtx", actorPtr + offsetof(ActorWiiU, mtx), mtx);
             overlay->AddOrUpdateEntity(actorId, actorName, "homeMtx", actorPtr + offsetof(ActorWiiU, homeMtx), homeMtx);
@@ -178,12 +189,23 @@ void CemuHooks::updateFrames() {
     }
 }
 
+extern glm::fvec3 g_lookAtPos;
 extern glm::fquat g_lookAtQuat;
+extern glm::fquat g_VRtoGame;
 extern OpenXR::EyeSide s_currentEye;
+
+glm::fquat rotateHorizontalCounter = glm::quat(glm::vec3(0.0f, glm::pi<float>(), 0.0f));
 
 void vrhook_changeWeaponMtx(OpenXR::EyeSide side, BEMatrix34& toBeAdjustedMtx, BEMatrix34& defaultMtx) {
     // convert VR controller info to glm
     XrPosef handPose = VRManager::instance().XR->m_input.controllers[side].poseLocation.pose;
+
+    // handPose.orientation.w = rotateHorizontalCounter.w;
+    // handPose.orientation.x = rotateHorizontalCounter.x;
+    // handPose.orientation.y = rotateHorizontalCounter.y;
+    // handPose.orientation.z = rotateHorizontalCounter.z;
+    // rotateHorizontalCounter = glm::rotate(rotateHorizontalCounter, glm::radians(360.0f/30.0f/1.0f), glm::fvec3(1.0f, 0.0f, 0.0f));
+
     glm::fvec3 controllerPos(
         handPose.position.x,
         handPose.position.y,
@@ -196,49 +218,10 @@ void vrhook_changeWeaponMtx(OpenXR::EyeSide side, BEMatrix34& toBeAdjustedMtx, B
         handPose.orientation.z
     );
 
-    BEMatrix34 before = toBeAdjustedMtx;
-
-    // convert in-game info to glm
-    glm::fmat3 existingInGameWeaponRotation(
-        toBeAdjustedMtx.x_x, toBeAdjustedMtx.y_x, toBeAdjustedMtx.z_x,
-        toBeAdjustedMtx.x_y, toBeAdjustedMtx.y_y, toBeAdjustedMtx.z_y,
-        toBeAdjustedMtx.x_z, toBeAdjustedMtx.y_z, toBeAdjustedMtx.z_z
-    );
-    glm::fquat existingInGameWeaponRotationQuat = glm::quat_cast(existingInGameWeaponRotation);
-    glm::vec3 ingameWeaponPos(
-        toBeAdjustedMtx.pos_x,
-        toBeAdjustedMtx.pos_y,
-        toBeAdjustedMtx.pos_z
-    );
-    glm::vec3 inGamePlayerPos(
-        defaultMtx.pos_x,
-        defaultMtx.pos_y,
-        defaultMtx.pos_z
-    );
-
-    // First, calculate the position
-    // Use player position as the origin since we want to overwrite the weapon position with the VR controller position
-    glm::fvec3 rotatedControllerPos = glm::inverse(g_lookAtQuat) * controllerPos;
-    glm::fvec3 finalPos = inGamePlayerPos + rotatedControllerPos;
-
-    toBeAdjustedMtx.pos_x = finalPos.x;
-    toBeAdjustedMtx.pos_y = finalPos.y;
-    toBeAdjustedMtx.pos_z = finalPos.z;
-
-    // --------------------------------------------------------------------------
-    // --------------------------------------------------------------------------
-    // --------------------------------------------------------------------------
-
     // Next, calculate the rotation
-
-
-    //glm::fquat rotatedControllerQuat = glm::normalize(controllerQuat);
-    // glm::fquat compareOriginalQuat = glm::normalize(existingInGameWeaponRotationQuat);
-    // glm::fmat3 compareOriginalMtx = glm::toMat3(compareOriginalQuat);
-    // Log::print("Original weapon rotation: {}", compareOriginalMtx);
-    // Log::print("Recalculated weapon rotation: {}", existingInGameWeaponRotation);
-
-    glm::fmat3 finalMtx = glm::toMat3(rotatedControllerQuat);
+    glm::fquat rotatedControllerQuat = glm::normalize(g_lookAtQuat * controllerQuat);
+    rotatedControllerQuat = glm::rotate(rotatedControllerQuat, glm::radians(180.0f), glm::fvec3(1.0f, 0.0f, 0.0f));
+    glm::fmat3 finalMtx = glm::toMat3(glm::inverse(rotatedControllerQuat));
 
     toBeAdjustedMtx.x_x = finalMtx[0][0];
     toBeAdjustedMtx.y_x = finalMtx[0][1];
@@ -251,6 +234,35 @@ void vrhook_changeWeaponMtx(OpenXR::EyeSide side, BEMatrix34& toBeAdjustedMtx, B
     toBeAdjustedMtx.x_z = finalMtx[2][0];
     toBeAdjustedMtx.y_z = finalMtx[2][1];
     toBeAdjustedMtx.z_z = finalMtx[2][2];
+
+    // First, calculate the position
+    // Use player position as the origin since we want to overwrite the weapon position with the VR controller position
+    glm::fvec3 rotatedControllerPos = g_lookAtQuat * controllerPos;
+    glm::fvec3 finalPos = g_lookAtPos + rotatedControllerPos;
+
+    toBeAdjustedMtx.pos_x = finalPos.x;
+    toBeAdjustedMtx.pos_y = finalPos.y;
+    toBeAdjustedMtx.pos_z = finalPos.z;
+
+
+    // convert in-game info to glm
+    // glm::fmat3 existingInGameWeaponRotation(
+    //     toBeAdjustedMtx.x_x, toBeAdjustedMtx.y_x, toBeAdjustedMtx.z_x,
+    //     toBeAdjustedMtx.x_y, toBeAdjustedMtx.y_y, toBeAdjustedMtx.z_y,
+    //     toBeAdjustedMtx.x_z, toBeAdjustedMtx.y_z, toBeAdjustedMtx.z_z
+    // );
+    // glm::fquat existingInGameWeaponRotationQuat = glm::quat_cast(existingInGameWeaponRotation);
+    // glm::vec3 ingameWeaponPos(
+    //     toBeAdjustedMtx.pos_x,
+    //     toBeAdjustedMtx.pos_y,
+    //     toBeAdjustedMtx.pos_z
+    // );
+    // glm::vec3 inGamePlayerPos(
+    //     defaultMtx.pos_x,
+    //     defaultMtx.pos_y,
+    //     defaultMtx.pos_z
+    // );
+
 }
 
 void CemuHooks::hook_changeWeaponMtx(PPCInterpreter_t* hCPU) {
@@ -283,64 +295,47 @@ void CemuHooks::hook_changeWeaponMtx(PPCInterpreter_t* hCPU) {
     bool isLeftHandWeapon = strcmp(boneName, "Weapon_L") == 0;
     bool isRightHandWeapon = strcmp(boneName, "Weapon_R") == 0;
     if (actorName[0] != '\0' && boneName[0] != '\0' && isHeldByPlayer && (isLeftHandWeapon || isRightHandWeapon)) {
-        BEMatrix34 mtx = {};
-        readMemory(hCPU->gpr[5], &mtx);
+        BEMatrix34 weaponMtx = {};
+        readMemory(hCPU->gpr[5], &weaponMtx);
 
-        BEMatrix34 extraMtx = {};
-        readMemory(hCPU->gpr[6], &extraMtx);
+        BEMatrix34 playerMtx = {};
+        readMemory(hCPU->gpr[6], &playerMtx);
 
-        BEMatrix34 itemMtx = {};
-        readMemory(modelBindInfoPtr, &itemMtx);
+        BEMatrix34 modelBindInfoMtx = {};
+        readMemory(modelBindInfoPtr, &modelBindInfoMtx);
 
-        vrhook_changeWeaponMtx(isLeftHandWeapon ? OpenXR::EyeSide::LEFT : OpenXR::EyeSide::RIGHT, mtx, extraMtx);
+        vrhook_changeWeaponMtx(isLeftHandWeapon ? OpenXR::EyeSide::LEFT : OpenXR::EyeSide::RIGHT, weaponMtx, playerMtx);
 
-        writeMemory(hCPU->gpr[5], &mtx);
-        writeMemory(hCPU->gpr[6], &extraMtx);
-        writeMemory(modelBindInfoPtr, &itemMtx);
+        writeMemory(hCPU->gpr[5], &weaponMtx);
+        writeMemory(hCPU->gpr[6], &playerMtx);
+        writeMemory(modelBindInfoPtr, &modelBindInfoMtx);
 
         hCPU->gpr[7] = 1;
 
-        // Log::print("Changing weapon matrix for {} with the bone {}:", actorName, boneName);
-        // Log::print("  -> destMtx: {}", mtx);
-        // Log::print("  -> extraMtx: {}", extraMtx);
-        // Log::print("  -> itemMtx: {}", itemMtx);
-
         auto& m_overlay = VRManager::instance().VK->m_imguiOverlay;
         if (m_overlay) {
-            m_overlay->AddOrUpdateEntity(1337, "PlayerHeldWeapons", isLeftHandWeapon ? "left_mtx" : "right_mtx", hCPU->gpr[5], mtx);
-            m_overlay->AddOrUpdateEntity(1337, "PlayerHeldWeapons", isLeftHandWeapon ? "left_extra_mtx" : "right_extra_mtx", hCPU->gpr[6], extraMtx);
-            m_overlay->AddOrUpdateEntity(1337, "PlayerHeldWeapons", isLeftHandWeapon ? "left_item_mtx" : "right_item_mtx", modelBindInfoPtr, itemMtx);
-            m_overlay->SetPriority(1337, -1.0f);
+            // m_overlay->m_playerPos = playerMtx.getPos().getLE();
+
+            m_overlay->AddOrUpdateEntity(1337, "PlayerHeldWeapons", isLeftHandWeapon ? "left_mtx" : "right_mtx", hCPU->gpr[5], weaponMtx);
+            m_overlay->AddOrUpdateEntity(1337, "PlayerHeldWeapons", isLeftHandWeapon ? "left_extra_mtx" : "right_extra_mtx", hCPU->gpr[6], playerMtx);
+            m_overlay->AddOrUpdateEntity(1337, "PlayerHeldWeapons", isLeftHandWeapon ? "left_item_mtx" : "right_item_mtx", modelBindInfoPtr, modelBindInfoMtx);
+            BEVec3 zeroMtx = {-100.0f, -100.0f, -100.0f};
+            m_overlay->SetPosition(1337, zeroMtx, zeroMtx);
 
             // freeze the value so it doesn't get overwritten
             Entity& entity = m_overlay->m_entities[1337];
             for (auto& value : entity.values) {
                 if (value.value_name == (isLeftHandWeapon ? "left_mtx" : "right_mtx") && value.frozen) {
-                    mtx = std::get<BEMatrix34>(value.value);
-                    writeMemory(hCPU->gpr[5], &mtx);
+                    weaponMtx = std::get<BEMatrix34>(value.value);
+                    writeMemory(hCPU->gpr[5], &weaponMtx);
                 }
                 else if (value.value_name == (isLeftHandWeapon ? "left_extra_mtx" : "right_extra_mtx") && value.frozen) {
-                    extraMtx = std::get<BEMatrix34>(value.value);
-                    writeMemory(hCPU->gpr[6], &extraMtx);
+                    playerMtx = std::get<BEMatrix34>(value.value);
+                    writeMemory(hCPU->gpr[6], &playerMtx);
                 }
                 else if (value.value_name == (isLeftHandWeapon ? "left_item_mtx" : "right_item_mtx") && value.frozen) {
-                    itemMtx = std::get<BEMatrix34>(value.value);
-                    writeMemory(modelBindInfoPtr, &itemMtx);
-                }
-                else {
-                    // // move mtx slightly upwards
-                    // mtx.y_x = mtx.y_x.getLE() + 5.1f;
-                    // mtx.z_x = mtx.z_x.getLE() + 5.1f;
-                    // mtx.pos_y = mtx.pos_y.getLE() + 5.1f;
-                    // mtx.x_z = mtx.x_z.getLE() + 5.1f;
-                    //
-                    // // move extraMtx slightly upwards
-                    // extraMtx.pos_x = extraMtx.y_x.getLE() + 5.1f;
-                    // extraMtx.pos_y = extraMtx.pos_y.getLE() + 5.1f;
-                    // extraMtx.pos_z = extraMtx.pos_z.getLE() + 5.1f;
-                    //
-                    // writeMemory(hCPU->gpr[5], &mtx);
-                    // writeMemory(hCPU->gpr[6], &extraMtx);
+                    modelBindInfoMtx = std::get<BEMatrix34>(value.value);
+                    writeMemory(modelBindInfoPtr, &modelBindInfoMtx);
                 }
             }
         }

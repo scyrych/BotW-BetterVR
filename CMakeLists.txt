@@ -85,6 +85,12 @@ target_link_libraries(BetterVR_Layer PRIVATE imgui::imgui)
 target_compile_definitions(BetterVR_Layer PRIVATE IMGUI_IMPL_VULKAN_NO_PROTOTYPES)
 target_sources(BetterVR_Layer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui_impl_vulkan.cpp)
 target_include_directories(BetterVR_Layer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies)
+target_sources(BetterVR_Layer PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/implot3d.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/implot3d_items.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/implot3d_meshes.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/implot3d_demo.cpp
+)
 
 # Set install rules
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/resources/BetterVR_Layer.json" "${CMAKE_CURRENT_SOURCE_DIR}/resources/Launch_BetterVR.bat" DESTINATION "${CMAKE_INSTALL_PREFIX}")

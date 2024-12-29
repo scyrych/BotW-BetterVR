@@ -1,8 +1,11 @@
 #include "instance.h"
 #include "vulkan.h"
 
+#include <implot3d_internal.h>
+
 RND_Vulkan::ImGuiOverlay::ImGuiOverlay(VkCommandBuffer cb, uint32_t width, uint32_t height, VkFormat format) {
-    m_context = ImGui::CreateContext();
+    ImGui::CreateContext();
+    ImPlot3D::CreateContext();
 
     // get queue
     VkQueue queue = nullptr;
@@ -202,10 +205,61 @@ RND_Vulkan::ImGuiOverlay::~ImGuiOverlay() {
         VRManager::instance().VK->GetDeviceDispatch()->DestroyDescriptorPool(VRManager::instance().VK->GetDevice(), m_descriptorPool, nullptr);
 
     ImGui_ImplVulkan_Shutdown();
-    ImGui::DestroyContext(m_context);
+    ImPlot3D::DestroyContext();
+    ImGui::DestroyContext();
 }
 
 constexpr ImGuiWindowFlags FULLSCREEN_WINDOW_FLAGS = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus;
+
+constexpr float nearZ = 0.1f;
+constexpr float farZ = 1000.0f;
+void DrawFrustumInPlot(glm::vec3& position, glm::fquat& rotation, XrFovf& fov, ImU32 color) {
+    float tanLeft = tanf(fov.angleLeft);
+    float tanRight = tanf(fov.angleRight);
+    float tanUp = tanf(fov.angleUp);
+    float tanDown = tanf(fov.angleDown);
+
+    float nearXLeft = tanLeft * nearZ;
+    float nearXRight = tanRight * nearZ;
+    float nearYUp = tanUp * nearZ;
+    float nearYDown = tanDown * nearZ;
+
+    float farXLeft = tanLeft * farZ;
+    float farXRight = tanRight * farZ;
+    float farYUp = tanUp * farZ;
+    float farYDown = tanDown * farZ;
+
+    glm::vec3 frustumCorners[8] = {
+        {nearXLeft,  nearYUp,    -nearZ}, // near top-left
+        {nearXRight, nearYUp,    -nearZ}, // near top-right
+        {nearXRight, nearYDown,  -nearZ}, // near bottom-right
+        {nearXLeft,  nearYDown,  -nearZ}, // near bottom-left
+        {farXLeft,   farYUp,     -farZ},  // far top-left
+        {farXRight,  farYUp,     -farZ},  // far top-right
+        {farXRight,  farYDown,   -farZ},  // far bottom-right
+        {farXLeft,   farYDown,   -farZ}   // far bottom-left
+    };
+
+    glm::mat4 transform = glm::translate(glm::mat4(1.0f), position) * glm::mat4_cast(rotation);
+
+    ImPlot3DPoint frustumPoints[8];
+    for (int i = 0; i < 8; ++i) {
+        glm::vec4 worldPos = transform * glm::vec4(frustumCorners[i], 1.0f);
+        frustumPoints[i] = ImPlot3DPoint(worldPos.x, worldPos.y, worldPos.z);
+    }
+
+    int edges[12][2] = {
+        {0, 1}, {1, 2}, {2, 3}, {3, 0}, // near plane
+        {4, 5}, {5, 6}, {6, 7}, {7, 4}, // far plane
+        {0, 4}, {1, 5}, {2, 6}, {3, 7}  // connecting edges
+    };
+
+    for (const auto& edge : edges) {
+        ImVec2 p0 = ImPlot3D::PlotToPixels(frustumPoints[edge[0]]);
+        ImVec2 p1 = ImPlot3D::PlotToPixels(frustumPoints[edge[1]]);
+        ImPlot3D::GetPlotDrawList()->AddLine(p0, p1, color);
+    }
+}
 
 void RND_Vulkan::ImGuiOverlay::BeginFrame() {
     ImGui_ImplVulkan_NewFrame();
@@ -265,8 +319,60 @@ void RND_Vulkan::ImGuiOverlay::BeginFrame() {
     }
 
     // ImGui::ShowDemoWindow();
+    // ImPlot3D::ShowDemoWindow();
 
-    ImGui::Begin("Entity Inspector");
+    ImGui::Begin("BetterVR Debugger");
+
+    ImGui::Checkbox("Disable Points For Entities", &m_disablePoints);
+    ImGui::Checkbox("Disable Text For Entities", &m_disableTexts);
+    ImGui::Checkbox("Disable Rotations For Entities", &m_disableRotations);
+
+    if (ImPlot3D::BeginPlot("World Space Inspector", ImVec2(-1, 0), ImPlot3DFlags_NoLegend | ImPlot3DFlags_NoTitle)) {
+        // add -50 and 50 to playerPos to make the plot centered around the player
+        constexpr float zoomOutAxis = 50.0f;
+        ImPlot3D::SetupAxesLimits(
+            -zoomOutAxis, +zoomOutAxis,
+            -zoomOutAxis, +zoomOutAxis,
+            -zoomOutAxis, +zoomOutAxis,
+            ImPlot3DCond_Once
+        );
+        ImPlot3D::SetupAxes("X", "Z", "Y");
+
+        if (m_resetPlot) {
+            ImPlot3D::GetCurrentPlot()->Axes[ImAxis3D_X].SetRange(m_playerPos.x-zoomOutAxis, m_playerPos.x+zoomOutAxis);
+            ImPlot3D::GetCurrentPlot()->Axes[ImAxis3D_Y].SetRange(m_playerPos.z-zoomOutAxis, m_playerPos.z+zoomOutAxis);
+            ImPlot3D::GetCurrentPlot()->Axes[ImAxis3D_Z].SetRange(m_playerPos.y-zoomOutAxis, m_playerPos.y+zoomOutAxis);
+            m_resetPlot = false;
+        }
+
+        // plot entities in 3D space
+        for (auto& entity : m_entities | std::views::values) {
+            if (!m_disableTexts) {
+                ImPlot3D::PlotText(entity.name.c_str(), entity.position.x.getLE(), entity.position.z.getLE(), entity.position.y.getLE(), 0, ImVec2(0, 5));
+            }
+            if (!m_disablePoints) {
+                ImVec2 cntr = ImPlot3D::PlotToPixels(ImPlot3DPoint(entity.position.x.getLE(), entity.position.z.getLE(), entity.position.y.getLE()));
+                ImPlot3D::GetPlotDrawList()->AddCircleFilled(cntr, 2, IM_COL32(255, 255, 0, 255), 8);
+            }
+            if (!m_disableRotations) {
+                glm::fvec3 start = entity.position.getLE();
+                glm::fvec3 end = entity.rotation * entity.position.getLE() * 0.05f;
+                float xList[] = { start.x, end.x };
+                float yList[] = { start.z, end.z };
+                float zList[] = { start.y, end.y };
+                ImPlot3D::PlotLine(entity.name.c_str(), xList, yList, zList, 2);
+            }
+        }
+
+        // draw VR frustums
+        // for (int i = 0; i < 2; ++i) {
+        //     XrPosef pose = std::get<1>(m_vrFrustums[i]);
+        //     glm::fquat rotation = glm::fquat(pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z);
+        //     DrawFrustumInPlot(std::get<0>(m_vrFrustums[i]), rotation, std::get<2>(m_vrFrustums[i]), IM_COL32(255, 0, 0, 255));
+        // }
+
+        ImPlot3D::EndPlot();
+    }
 
     static char buf[256];
     ImGui::InputText("Filter", buf, std::size(buf));
@@ -579,7 +685,7 @@ void RND_Vulkan::ImGuiOverlay::UpdateControls() {
 // Memory Viewer/Editor
 
 void RND_Vulkan::ImGuiOverlay::AddOrUpdateEntity(uint32_t actorId, const std::string& entityName, const std::string& valueName, uint32_t address, ValueVariant&& value) {
-    const auto& [entityIt, _] = m_entities.try_emplace(actorId, Entity{ entityName, 0.0f, {} });
+    const auto& [entityIt, _] = m_entities.try_emplace(actorId, Entity{ entityName, 0.0f, {}, {} });
 
     const auto& valueIt = std::ranges::find_if(entityIt->second.values, [&](EntityValue& val) {
         return val.value_name == valueName;
@@ -593,12 +699,27 @@ void RND_Vulkan::ImGuiOverlay::AddOrUpdateEntity(uint32_t actorId, const std::st
     }
 }
 
-void RND_Vulkan::ImGuiOverlay::SetPriority(uint32_t actorId, float priority) {
-    if (auto it = m_entities.find(actorId); it != m_entities.end()) {
-        it->second.priority = priority;
+void RND_Vulkan::ImGuiOverlay::SetPosition(uint32_t actorId, const BEVec3& ws_playerPos, const BEVec3& ws_entityPos) {
+    if (const auto it = m_entities.find(actorId); it != m_entities.end()) {
+        it->second.priority = ws_playerPos.DistanceSq(ws_entityPos);
+        it->second.position = ws_entityPos;
+    }
+}
+
+void RND_Vulkan::ImGuiOverlay::SetRotation(uint32_t actorId, const glm::fquat rotation) {
+    if (const auto it = m_entities.find(actorId); it != m_entities.end()) {
+        it->second.rotation = rotation;
     }
 }
 
 void RND_Vulkan::ImGuiOverlay::RemoveEntity(uint32_t actorId) {
     m_entities.erase(actorId);
+}
+
+void RND_Vulkan::ImGuiOverlay::SetInGameFrustum(OpenXR::EyeSide side, glm::fvec3 position, glm::fquat rotation, XrFovf fov) {
+    this->m_inGameFrustums[side] = { position, rotation, fov };
+}
+
+void RND_Vulkan::ImGuiOverlay::SetVRFrustum(OpenXR::EyeSide side, glm::fvec3 from, XrPosef pose, XrFovf fov) {
+    this->m_vrFrustums[side] = { from, pose, fov };
 }

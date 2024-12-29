@@ -45,8 +45,10 @@ using Microsoft::WRL::ComPtr;
 #include <openxr/openxr_platform.h>
 
 // ImGui includes
+#define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <imgui_impl_vulkan.h>
+#include <implot3d.h>
 
 // glm includes
 #include <glm/ext/matrix_transform.hpp>
@@ -181,47 +183,6 @@ struct BEType : BETypeCompatible {
 template<typename T>
 inline constexpr bool is_BEType_v = std::is_base_of_v<BETypeCompatible, T>;
 
-struct BEMatrix34 : BETypeCompatible {
-    BEType<float> x_x;
-    BEType<float> y_x;
-    BEType<float> z_x;
-    BEType<float> pos_x;
-    BEType<float> x_y;
-    BEType<float> y_y;
-    BEType<float> z_y;
-    BEType<float> pos_y;
-    BEType<float> x_z;
-    BEType<float> y_z;
-    BEType<float> z_z;
-    BEType<float> pos_z;
-
-    float DistanceSq(BEMatrix34 other) const {
-        return (pos_x.getLE() - other.pos_x.getLE()) * (pos_x.getLE() - other.pos_x.getLE()) + (pos_y.getLE() - other.pos_y.getLE()) * (pos_y.getLE() - other.pos_y.getLE()) + (pos_z.getLE() - other.pos_z.getLE()) * (pos_z.getLE() - other.pos_z.getLE());
-    }
-
-    std::array<std::array<float, 4>, 3> getLE() const {
-        std::array<float, 4> row0 = { x_x.getLE(), y_x.getLE(), z_x.getLE(), pos_x.getLE() };
-        std::array<float, 4> row1 = { x_y.getLE(), y_y.getLE(), z_y.getLE(), pos_y.getLE() };
-        std::array<float, 4> row2 = { x_z.getLE(), y_z.getLE(), z_z.getLE(), pos_z.getLE() };
-        return { row0, row1, row2 };
-    }
-
-    void setLE(std::array<std::array<float, 4>, 3> mtx) {
-        x_x = mtx[0][0];
-        y_x = mtx[0][1];
-        z_x = mtx[0][2];
-        pos_x = mtx[0][3];
-        x_y = mtx[1][0];
-        y_y = mtx[1][1];
-        z_y = mtx[1][2];
-        pos_y = mtx[1][3];
-        x_z = mtx[2][0];
-        y_z = mtx[2][1];
-        z_z = mtx[2][2];
-        pos_z = mtx[2][3];
-    }
-};
-
 struct BEVec2 : BETypeCompatible {
     BEType<float> x;
     BEType<float> y;
@@ -237,10 +198,70 @@ struct BEVec3 : BETypeCompatible {
     BEType<float> z;
 
     BEVec3() = default;
+    BEVec3(BEType<float> x, BEType<float> y, BEType<float> z): x(x), y(y), z(z) {}
     BEVec3(float x, float y, float z): x(x), y(y), z(z) {}
 
     float DistanceSq(BEVec3 other) const {
         return (x.getLE() - other.x.getLE()) * (x.getLE() - other.x.getLE()) + (y.getLE() - other.y.getLE()) * (y.getLE() - other.y.getLE()) + (z.getLE() - other.z.getLE()) * (z.getLE() - other.z.getLE());
+    }
+
+    glm::fvec3 getLE() const {
+        return { x.getLE(), y.getLE(), z.getLE() };
+    }
+};
+
+struct BEMatrix34 : BETypeCompatible {
+    BEType<float> x_x;
+    BEType<float> y_x;
+    BEType<float> z_x;
+    BEType<float> pos_x;
+    BEType<float> x_y;
+    BEType<float> y_y;
+    BEType<float> z_y;
+    BEType<float> pos_y;
+    BEType<float> x_z;
+    BEType<float> y_z;
+    BEType<float> z_z;
+    BEType<float> pos_z;
+
+    BEMatrix34() = default;
+
+    float DistanceSq(BEMatrix34 other) const {
+        return (pos_x.getLE() - other.pos_x.getLE()) * (pos_x.getLE() - other.pos_x.getLE()) + (pos_y.getLE() - other.pos_y.getLE()) * (pos_y.getLE() - other.pos_y.getLE()) + (pos_z.getLE() - other.pos_z.getLE()) * (pos_z.getLE() - other.pos_z.getLE());
+    }
+
+    std::array<std::array<float, 4>, 3> getLE() const {
+        std::array row0 = { x_x.getLE(), y_x.getLE(), z_x.getLE(), pos_x.getLE() };
+        std::array row1 = { x_y.getLE(), y_y.getLE(), z_y.getLE(), pos_y.getLE() };
+        std::array row2 = { x_z.getLE(), y_z.getLE(), z_z.getLE(), pos_z.getLE() };
+        return { row0, row1, row2 };
+    }
+
+    BEVec3 getPos() const {
+        return { pos_x, pos_y, pos_z };
+    }
+
+    glm::fquat getRotLE() const {
+        return glm::quat_cast(glm::fmat3(
+            x_x.getLE(), y_x.getLE(), z_x.getLE(),
+            x_y.getLE(), y_y.getLE(), z_y.getLE(),
+            x_z.getLE(), y_z.getLE(), z_z.getLE()
+        ));
+    }
+
+    void setLE(std::array<std::array<float, 4>, 3> mtx) {
+        x_x = mtx[0][0];
+        y_x = mtx[0][1];
+        z_x = mtx[0][2];
+        pos_x = mtx[0][3];
+        x_y = mtx[1][0];
+        y_y = mtx[1][1];
+        z_y = mtx[1][2];
+        pos_y = mtx[1][3];
+        x_z = mtx[2][0];
+        y_z = mtx[2][1];
+        z_z = mtx[2][2];
+        pos_z = mtx[2][3];
     }
 };
 
