@@ -65,15 +65,16 @@ void CemuHooks::hook_UpdateCameraPositionAndTarget(PPCInterpreter_t* hCPU) {
     data_VRCameraOut updatedCameraMatrix = {};
     updatedCameraMatrix.enabled = true;
     updatedCameraMatrix.posX = oldCameraPosition.x + rotatedHmdPos.x;
-    updatedCameraMatrix.posY = oldCameraPosition.y + rotatedHmdPos.y;
+    updatedCameraMatrix.posY = oldCameraPosition.y + rotatedHmdPos.y + CemuHooks::GetSettings().playerHeightSetting.getLE();
     updatedCameraMatrix.posZ = oldCameraPosition.z + rotatedHmdPos.z;
     // pos + rotated headset pos + inverted forward direction after combining both the in-game and HMD rotation
     updatedCameraMatrix.targetX = oldCameraPosition.x + rotatedHmdPos.x + ((combinedMatrix[2][0] * -1.0f) * oldCameraDistance);
-    updatedCameraMatrix.targetY = oldCameraPosition.y + rotatedHmdPos.y + ((combinedMatrix[2][1] * -1.0f) * oldCameraDistance);
+    updatedCameraMatrix.targetY = oldCameraPosition.y + rotatedHmdPos.y + ((combinedMatrix[2][1] * -1.0f) * oldCameraDistance) + CemuHooks::GetSettings().playerHeightSetting.getLE();
     updatedCameraMatrix.targetZ = oldCameraPosition.z + rotatedHmdPos.z + ((combinedMatrix[2][2] * -1.0f) * oldCameraDistance);
 
     // set the lookAt position and quaternion with offset to be able to translate the controller position to the game world
     g_lookAtPos = oldCameraPosition;
+    g_lookAtPos.y += CemuHooks::GetSettings().playerHeightSetting.getLE();
     g_lookAtQuat = lookAtQuat;
 
     // manages pivot, roll and pitch presumably

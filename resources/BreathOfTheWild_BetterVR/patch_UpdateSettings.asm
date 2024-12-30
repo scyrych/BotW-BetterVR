@@ -17,6 +17,9 @@ AlternatingEyeRenderingSetting:
 CropFlatTo16_9Setting:
 .int $cropFlatTo16_9
 
+PlayerHeightSetting:
+.float $cameraHeight
+
 
 vr_updateSettings:
 addi r1, r1, -0x08

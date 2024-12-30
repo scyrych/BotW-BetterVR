@@ -13,6 +13,7 @@ $AER:int = 0
 $cropFlatTo16_9:int = 1
 
 $cameraDistance = 0.5
+$cameraHeight = -0.5
 $linkOpacity = 1.0
 
 
@@ -60,6 +61,32 @@ name = Disabled, Update Camera Simultaneously (Default)
 category = Alternate Eye Rendering
 default = 1
 $AER = 0
+
+# First Person - Height Offset
+[Preset]
+name = Small
+category = Height In First Person
+condition = $cameraMode == 1
+$cameraHeight = -1.0
+
+[Preset]
+name = Normal (Default)
+category = Player Height
+condition = $cameraMode == 1
+default = 1
+$cameraHeight = -0.5
+
+[Preset]
+name = Tall (VFX Might Be Offset)
+category = Player Height
+condition = $cameraMode == 1
+$cameraHeight = 0.0
+
+[Preset]
+name = Really Tall (VFX Might Be Offset)
+category = Player Height
+condition = $cameraMode == 1
+$cameraHeight = 10.0
 
 
 # Third Person - Camera Distance
