@@ -19,19 +19,20 @@ stw r4, 0x0C(r1)
 stw r5, 0x10(r1)
 stw r6, 0x14(r1)
 stw r7, 0x18(r1)
+stw r8, 0x20(r1)
+stw r9, 0x24(r1)
 
 
 ; call C++ code to change the weapon mtx to the hand mtx
-lwz r3, 0x1C(r1) ; the actor
+lwz r3, 0x1C(r1) ; the source actor
 lwz r4, 0x18(r31) ; the char array of the weapon name
-;addi r5, r1, 0x10 ; the target MTX
 lwz r5, 0x10(r1) ; the target MTX
 addi r6, r29, 0x34 ; the gsysModel->mtx, maybe used for the location?
-;mr r7, r31 ; the to-be-changed MTX
 addi r7, r31, 0x3C ; the mtx of the item supposedly
+lwz r8, 0x0C(r1) ; the target actor
 bl import.coreinit.hook_changeWeaponMtx
 
-cmpwi r7, 0
+cmpwi r9, 0
 beq noChangeWeaponMtx
 
 lwz r3, 0x6C(r31)
@@ -45,6 +46,8 @@ lwz r4, 0x0C(r1)
 lwz r5, 0x10(r1)
 lwz r6, 0x14(r1)
 lwz r7, 0x18(r1)
+lwz r8, 0x20(r1)
+lwz r9, 0x24(r1)
 
 lwz r0, 0x54(r1)
 mtlr r0

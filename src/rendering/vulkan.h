@@ -2,7 +2,7 @@
 #include "openxr.h"
 #include "texture.h"
 
-using ValueVariant = std::variant<BEType<uint32_t>, BEType<int32_t>, BEType<float>, BEVec3, BEMatrix34, std::string>;
+using ValueVariant = std::variant<BEType<uint32_t>, BEType<int32_t>, BEType<float>, BEType<uint8_t>, BEVec3, BEMatrix34, std::string>;
 
 struct EntityValue {
     std::string value_name;

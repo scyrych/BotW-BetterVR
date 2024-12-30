@@ -146,18 +146,19 @@ void CemuHooks::updateFrames() {
                 }
                 overlay->m_playerPos = newPlayerPos;
 
-                // set invisibility flag
+                // // set invisibility flag
                 // {
-                //     int32_t flags = 0;
+                //     BEType<int32_t> flags = 0;
                 //     readMemory(actorData.second + offsetof(ActorWiiU, flags3), &flags);
-                //     flags |= 0x800;
+                //     flags = flags.getLE() | 0x800;
                 //     writeMemory(actorData.second + offsetof(ActorWiiU, flags3), &flags);
                 // }
                 // {
-                //     int32_t flags = 0;
+                //     BEType<int32_t> flags = 0;
                 //     readMemory(actorData.second + offsetof(ActorWiiU, flags2), &flags);
-                //     flags |= 0x800;
+                //     flags = flags.getLE() | 0x20;
                 //     writeMemory(actorData.second + offsetof(ActorWiiU, flags2), &flags);
+                //     writeMemory(actorData.second + offsetof(ActorWiiU, flags2Copy), &flags);
                 // }
                 // {
                 //     float lodDrawDistanceMultiplier = 0;
@@ -171,24 +172,29 @@ void CemuHooks::updateFrames() {
                 //     startModelOpacity = 0.0f;
                 //     writeMemory(actorData.second + offsetof(ActorWiiU, startModelOpacity), &startModelOpacity);
                 // }
-                {
-                    BEType<float> modelOpacity = 1.0f;
-                    readMemory(actorData.second + offsetof(ActorWiiU, modelOpacity), &modelOpacity);
-                    modelOpacity = 1.0f;
-                    writeMemory(actorData.second + offsetof(ActorWiiU, modelOpacity), &modelOpacity);
-                }
-                {
-                    uint8_t opacityOrSomethingEnabled = 0;
-                    writeMemory(actorData.second + offsetof(ActorWiiU, opacityOrSomethingEnabled), &opacityOrSomethingEnabled);
-                    writeMemory(actorData.second + offsetof(ActorWiiU, opacityOrSomethingEnabled)+1, &opacityOrSomethingEnabled);
-                    writeMemory(actorData.second + offsetof(ActorWiiU, opacityOrSomethingEnabled)-1, &opacityOrSomethingEnabled);
-                    writeMemory(actorData.second + offsetof(ActorWiiU, opacityOrSomethingEnabled)-2, &opacityOrSomethingEnabled);
-                }
+                // {
+                //     BEType<float> modelOpacity = 1.0f;
+                //     readMemory(actorData.second + offsetof(ActorWiiU, modelOpacity), &modelOpacity);
+                //     modelOpacity = 1.0f;
+                //     writeMemory(actorData.second + offsetof(ActorWiiU, modelOpacity), &modelOpacity);
+                // }
+                // {
+                //     uint8_t opacityOrSomethingEnabled = 0;
+                //     writeMemory(actorData.second + offsetof(ActorWiiU, opacityOrSomethingEnabled), &opacityOrSomethingEnabled);
+                //     writeMemory(actorData.second + offsetof(ActorWiiU, opacityOrSomethingEnabled)+1, &opacityOrSomethingEnabled);
+                //     writeMemory(actorData.second + offsetof(ActorWiiU, opacityOrSomethingEnabled)-1, &opacityOrSomethingEnabled);
+                //     writeMemory(actorData.second + offsetof(ActorWiiU, opacityOrSomethingEnabled)-2, &opacityOrSomethingEnabled);
+                // }
             }
             else if (actorData.first == "GameRomCamera") {
                 readMemory(actorData.second + offsetof(ActorWiiU, mtx), &playerPos);
                 glm::fvec3 newPlayerPos = playerPos.getPos().getLE();
-
+            }
+            else if (actorData.first.starts_with("Weapon_Sword")) {
+                // BEType<float> modelOpacity = 1.0f;
+                // writeMemory(actorData.second + offsetof(ActorWiiU, modelOpacity), &modelOpacity);
+                // uint8_t opacityOrSomethingEnabled = 1;
+                // writeMemory(actorData.second + offsetof(ActorWiiU, opacityOrSomethingEnabled), &opacityOrSomethingEnabled);
             }
         }
 
@@ -230,6 +236,8 @@ void CemuHooks::updateFrames() {
             addField.operator()<uint32_t>("modelBindInfoPtr", offsetof(ActorWiiU, modelBindInfoPtr));
             addField.operator()<uint32_t>("gsysModelPtr", offsetof(ActorWiiU, gsysModelPtr));
             addField.operator()<float>("startModelOpacity", offsetof(ActorWiiU, startModelOpacity));
+            addField.operator()<float>("modelOpacity", offsetof(ActorWiiU, modelOpacity));
+            addField.operator()<uint8_t>("opacityOrSomethingEnabled", offsetof(ActorWiiU, opacityOrSomethingEnabled));
             addField.operator()<BEVec3>("aabb_min", offsetof(ActorWiiU, aabb.minX));
             addField.operator()<BEVec3>("aabb_max", offsetof(ActorWiiU, aabb.maxX));
             addField.operator()<uint32_t>("flags2", offsetof(ActorWiiU, flags2));
@@ -251,7 +259,6 @@ void CemuHooks::updateFrames() {
                 if (!value.frozen)
                     continue;
 
-                // Log::print("Freezing value {} from {}...", value.value_name, entity.name);
                 std::visit([&](auto&& arg) {
                     using T = std::decay_t<decltype(arg)>;
                     if constexpr (std::is_same_v<T, BEType<uint32_t>>) {
@@ -269,6 +276,9 @@ void CemuHooks::updateFrames() {
                     else if constexpr (std::is_same_v<T, BEMatrix34>) {
                         writeMemory(value.value_address, &arg);
                     }
+                    else if constexpr (std::is_same_v<T, uint8_t>) {
+                        writeMemory(value.value_address, &arg);
+                    }
                 }, value.value);
             }
         }
@@ -279,7 +289,7 @@ extern glm::fvec3 g_lookAtPos;
 extern glm::fquat g_lookAtQuat;
 extern OpenXR::EyeSide s_currentEye;
 
-glm::fquat rotateHorizontalCounter = glm::quat(glm::vec3(0.0f, glm::pi<float>(), 0.0f));
+// glm::fquat rotateHorizontalCounter = glm::quat(glm::vec3(0.0f, glm::pi<float>(), 0.0f));
 
 void vrhook_changeWeaponMtx(OpenXR::EyeSide side, BEMatrix34& toBeAdjustedMtx, BEMatrix34& defaultMtx) {
     // convert VR controller info to glm
@@ -339,8 +349,7 @@ void CemuHooks::hook_changeWeaponMtx(PPCInterpreter_t* hCPU) {
     // r6 holds the extra matrix that is to be set
     // r7 holds the ModelBindInfo->mtx
 
-    uint32_t modelBindInfoPtr = hCPU->gpr[7];
-    hCPU->gpr[7] = 0;
+    hCPU->gpr[9] = 0;
 
     uint32_t actorLinkPtr = hCPU->gpr[3] + offsetof(ActorWiiU, baseProcPtr);
     uint32_t actorNamePtr = 0;
@@ -367,15 +376,21 @@ void CemuHooks::hook_changeWeaponMtx(PPCInterpreter_t* hCPU) {
         readMemory(hCPU->gpr[6], &playerMtx);
 
         BEMatrix34 modelBindInfoMtx = {};
-        readMemory(modelBindInfoPtr, &modelBindInfoMtx);
+        readMemory(hCPU->gpr[7], &modelBindInfoMtx);
 
         vrhook_changeWeaponMtx(isLeftHandWeapon ? OpenXR::EyeSide::LEFT : OpenXR::EyeSide::RIGHT, weaponMtx, playerMtx);
 
+        // prevent weapon transparency
+        BEType<float> modelOpacity = 1.0f;
+        writeMemory(hCPU->gpr[8] + offsetof(ActorWiiU, modelOpacity), &modelOpacity);
+        uint8_t opacityOrSomethingEnabled = 1;
+        writeMemory(hCPU->gpr[8] + offsetof(ActorWiiU, opacityOrSomethingEnabled), &opacityOrSomethingEnabled);
+
         writeMemory(hCPU->gpr[5], &weaponMtx);
         writeMemory(hCPU->gpr[6], &playerMtx);
-        writeMemory(modelBindInfoPtr, &modelBindInfoMtx);
+        writeMemory(hCPU->gpr[7], &modelBindInfoMtx);
 
-        hCPU->gpr[7] = 1;
+        hCPU->gpr[9] = 1;
 
         auto& m_overlay = VRManager::instance().VK->m_imguiOverlay;
         if (m_overlay) {
@@ -383,7 +398,7 @@ void CemuHooks::hook_changeWeaponMtx(PPCInterpreter_t* hCPU) {
 
             m_overlay->AddOrUpdateEntity(1337, "PlayerHeldWeapons", isLeftHandWeapon ? "left_weapon_mtx" : "right_weapon_mtx", hCPU->gpr[5], weaponMtx);
             m_overlay->AddOrUpdateEntity(1337, "PlayerHeldWeapons", isLeftHandWeapon ? "left_player_mtx" : "right_player_mtx", hCPU->gpr[6], playerMtx);
-            m_overlay->AddOrUpdateEntity(1337, "PlayerHeldWeapons", isLeftHandWeapon ? "left_ModelBindInfo_mtx" : "right_ModelBindInfo_mtx", modelBindInfoPtr, modelBindInfoMtx);
+            m_overlay->AddOrUpdateEntity(1337, "PlayerHeldWeapons", isLeftHandWeapon ? "left_ModelBindInfo_mtx" : "right_ModelBindInfo_mtx", hCPU->gpr[7], modelBindInfoMtx);
             BEVec3 zeroMtx = {-100.0f, -100.0f, -100.0f};
             m_overlay->SetPosition(1337, zeroMtx, zeroMtx);
 
@@ -400,7 +415,7 @@ void CemuHooks::hook_changeWeaponMtx(PPCInterpreter_t* hCPU) {
                 }
                 else if (value.value_name == (isLeftHandWeapon ? "left_ModelBindInfo_mtx" : "right_ModelBindInfo_mtx") && value.frozen) {
                     modelBindInfoMtx = std::get<BEMatrix34>(value.value);
-                    writeMemory(modelBindInfoPtr, &modelBindInfoMtx);
+                    writeMemory(hCPU->gpr[7], &modelBindInfoMtx);
                 }
             }
         }
