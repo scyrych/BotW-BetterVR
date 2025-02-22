@@ -265,6 +265,55 @@ struct BEMatrix34 : BETypeCompatible {
     }
 };
 
+struct BEMatrix44 : BETypeCompatible {
+    BEType<float> a00;
+    BEType<float> a01;
+    BEType<float> a02;
+    BEType<float> a03;
+    BEType<float> a10;
+    BEType<float> a11;
+    BEType<float> a12;
+    BEType<float> a13;
+    BEType<float> a20;
+    BEType<float> a21;
+    BEType<float> a22;
+    BEType<float> a23;
+    BEType<float> a30;
+    BEType<float> a31;
+    BEType<float> a32;
+    BEType<float> a33;
+
+    BEMatrix44() = default;
+
+    glm::fmat4 getLE() const {
+        return glm::fmat4(
+            a00.getLE(), a01.getLE(), a02.getLE(), a03.getLE(),
+            a10.getLE(), a11.getLE(), a12.getLE(), a13.getLE(),
+            a20.getLE(), a21.getLE(), a22.getLE(), a23.getLE(),
+            a30.getLE(), a31.getLE(), a32.getLE(), a33.getLE()
+        );
+    }
+
+    void setLE(glm::fmat4 mtx) {
+        a00 = mtx[0][0];
+        a01 = mtx[0][1];
+        a02 = mtx[0][2];
+        a03 = mtx[0][3];
+        a10 = mtx[1][0];
+        a11 = mtx[1][1];
+        a12 = mtx[1][2];
+        a13 = mtx[1][3];
+        a20 = mtx[2][0];
+        a21 = mtx[2][1];
+        a22 = mtx[2][2];
+        a23 = mtx[2][3];
+        a30 = mtx[3][0];
+        a31 = mtx[3][1];
+        a32 = mtx[3][2];
+        a33 = mtx[3][3];
+    }
+};
+
 struct data_VRSettingsIn {
     BEType<int32_t> cameraModeSetting;
     BEType<int32_t> guiFollowSetting;
@@ -288,6 +337,38 @@ struct data_VRSettingsIn {
         return cropFlatTo16x9Setting == 1;
     }
 };
+
+
+
+#pragma pack(push, 1)
+struct BESeadProjection {
+    BEType<bool> dirty;
+    BEType<bool> deviceDirty;
+    BEType<uint8_t> pad0;
+    BEType<uint8_t> pad1;
+    BEType<uint32_t> devicePosture;
+    BEMatrix44 matrix;
+    BEMatrix44 deviceMatrix;
+    BEType<float> deviceZScale;
+    BEType<float> deviceZOffset;
+    BEType<uint32_t> __vftable;
+};
+#pragma pack(pop)
+static_assert(sizeof(BESeadProjection) == 0x94, "BESeadProjection size mismatch");
+
+#pragma pack(push, 1)
+struct BESeadCamera {
+    BEMatrix34 mtx;
+    BEType<uint32_t> __vftable;
+};
+struct BESeadLookAtCamera : BESeadCamera {
+    BEVec3 pos;
+    BEVec3 at;
+    BEVec3 up;
+};
+#pragma pack(pop)
+static_assert(sizeof(BESeadCamera) == 0x34, "BESeadCamera size mismatch");
+static_assert(sizeof(BESeadLookAtCamera) == 0x58, "BESeadLookAtCamera size mismatch");
 
 struct data_VRCameraIn {
     BEType<float> posX;

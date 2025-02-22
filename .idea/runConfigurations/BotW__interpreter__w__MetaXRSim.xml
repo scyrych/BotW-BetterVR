@@ -3,7 +3,7 @@
     <envs>
       <env name="DISABLE_XR_APILAYER_MBUCCHIA_toolkit" value="1" />
       <env name="ENABLE_VULKAN_RENDERDOC_CAPTURE" value="0" />
-      <env name="VK_INSTANCE_LAYERS" value="VK_LAYER_BetterVR_Layer" />
+      <env name="VK_INSTANCE_LAYERS" value="VK_LAYER_CREMENTIF_bettervr" />
       <env name="VK_LAYER_PATH" value=".\;" />
       <env name="VK_LOADER_DEBUG" value="error" />
       <env name="XR_RUNTIME_JSON" value=".\..\MetaXRSimulator\meta_openxr_simulator.json" />

@@ -5,7 +5,7 @@
   "dependencies": [
     {
       "name": "openxr-loader",
-      "version>=": "1.0.34#0"
+      "version>=": "1.0.34#1"
     },
     {
       "name": "glm",
@@ -14,7 +14,7 @@
     },
     {
       "name": "vulkan-headers",
-      "version>=": "1.3.296.0"
+      "version>=": "1.4.304.0#0"
     },
     {
       "name": "imgui",

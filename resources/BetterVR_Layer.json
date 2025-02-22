@@ -1,7 +1,7 @@
 {
   "file_format_version": "1.1.2",
   "layer": {
-    "name": "VK_LAYER_BetterVR_Layer",
+    "name": "VK_LAYER_CREMENTIF_bettervr",
     "type": "GLOBAL",
     "library_path": "BetterVR_Layer.dll",
     "api_version": "1.2.0",

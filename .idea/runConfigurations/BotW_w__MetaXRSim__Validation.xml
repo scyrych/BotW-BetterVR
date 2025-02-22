@@ -3,7 +3,7 @@
     <envs>
       <env name="adsasd" value="" />
       <env name="ENABLE_VULKAN_RENDERDOC_CAPTURE" value="0" />
-      <env name="VK_INSTANCE_LAYERS" value="VK_LAYER_BetterVR_Layer;VK_LAYER_KHRONOS_validation;" />
+      <env name="VK_INSTANCE_LAYERS" value="VK_LAYER_CREMENTIF_bettervr;VK_LAYER_KHRONOS_validation;" />
       <env name="VK_LAYER_DEBUG_ACTION" value="VK_DBG_LAYER_ACTION_LOG_MSG,VK_DBG_LAYER_ACTION_DEBUG_OUTPUT" />
       <env name="VK_LAYER_LOG_FILENAME" value="C:\Projects\Cemu\BotW-BetterVR\Cemu\vulkan_validation_log.txt" />
       <env name="VK_LAYER_PATH" value=".\;C:\Programs\VulkanSDK\Bin;" />

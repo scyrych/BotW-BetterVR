@@ -1,3 +1,6 @@
+set(VCPKG_TARGET_TRIPLET "x64-windows-static-md")
+set(VCPKG_HOST_TRIPLET "x64-windows-static-md")
+
 cmake_minimum_required(VERSION 3.7.0)
 project(BetterVR_Layer VERSION 0.1.0 LANGUAGES CXX)
 
@@ -29,16 +32,12 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 add_compile_definitions(NOMINMAX)
 add_compile_options("/await")
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-set(VCPKG_TARGET_TRIPLET "x64-windows-static-md$<$<CONFIG:Release>:-rel>")
-set(VCPKG_HOST_TRIPLET "x64-windows-static-md$<$<CONFIG:Release>:-rel>")
 
 # Find vcpkg dependencies
 find_path(VULKAN_HEADERS_INCLUDE_DIRS "vk_video/vulkan_video_codec_h264std.h")
 find_package(OpenXR CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
-find_package(JsonCpp CONFIG REQUIRED) # Required for OpenXR loader to compile
 find_package(imgui CONFIG REQUIRED)
-
 
 # Add DLL target
 add_library(BetterVR_Layer SHARED)
