@@ -41,6 +41,7 @@ public:
 
             std::array<XrActionStatePose, 2> pose;
             std::array<XrSpaceLocation, 2> poseLocation;
+            std::array<XrSpaceVelocity, 2> poseVelocity;
         } inGame;
         struct InMenu {
             bool in_game = false;
@@ -108,6 +109,7 @@ private:
     // XrAction m_menuAction = XR_NULL_HANDLE;
     // XrAction m_moveAction = XR_NULL_HANDLE;
     // XrAction m_cameraAction = XR_NULL_HANDLE;
+    XrAction m_rumbleAction = XR_NULL_HANDLE;
 
     // menu actions
     XrActionSet m_menuActionSet = XR_NULL_HANDLE;
@@ -125,8 +127,6 @@ private:
 
     std::unique_ptr<RND_Renderer> m_renderer;
 
-    std::array<XrTime, 2> m_frameTimes = { 0, 0 };
-    std::array<XrView, 2> m_updatedViews = {};
     constexpr static XrPosef s_xrIdentityPose = { .orientation = { .x = 0, .y = 0, .z = 0, .w = 1 }, .position = { .x = 0, .y = 0, .z = 0 } };
 
     XrDebugUtilsMessengerEXT m_debugMessengerHandle = XR_NULL_HANDLE;

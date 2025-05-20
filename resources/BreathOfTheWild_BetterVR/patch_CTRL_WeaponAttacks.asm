@@ -12,11 +12,34 @@ stw r0, 0x24(r1)
 stw r3, 0x1C(r1)
 stw r4, 0x18(r1)
 stw r5, 0x14(r1)
+stw r6, 0x10(r1)
+stw r7, 0x0C(r1)
 
-mr r4, r3 ; r4 = Actor* parentActor
 mr r3, r31 ; r3 = Weapon* this
+mr r4, r3 ; r4 = Actor* parentActor
+
+stw r3, 0x08(r1) ; store Weapon* in stack
+stw r4, 0x04(r1) ; store Actor* in stack
+
+; call Weapon::isHolding
+lwz r4, 0xE8(r3)
+lwz r4, 0x4CC(r4)
+mtctr r4
+lwz r3, 0x08(r1) ; r3 = Weapon*
+lwz r4, 0x04(r1) ; r4 = Actor*
+bctrl
+
+mr r6, r3 ; r6 = Weapon::isHolding
+
+lwz r3, 0x08(r1) ; r3 = Weapon*
+lwz r4, 0x04(r1) ; r4 = Actor*
+; get held index from Weapon*
+lwz r5, 0x6A4(r3)
 bla import.coreinit.hook_EnableWeaponAttackSensor
 
+lwz r8, 0x08(r1)
+lwz r7, 0x0C(r1)
+lwz r6, 0x10(r1)
 lwz r5, 0x14(r1)
 lwz r4, 0x18(r1)
 lwz r3, 0x1C(r1)

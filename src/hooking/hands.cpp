@@ -1,5 +1,6 @@
 #include "../instance.h"
 #include "cemu_hooks.h"
+#include "hands.h"
 
 #include <glm/gtx/quaternion.hpp>
 
@@ -122,6 +123,25 @@ void CemuHooks::hook_ChangeWeaponMtx(PPCInterpreter_t* hCPU) {
     }
 }
 
+void CemuHooks::hook_EnableWeaponAttackSensor(PPCInterpreter_t* hCPU) {
+    hCPU->instructionPointer = hCPU->sprNew.LR;
+
+    uint32_t weaponPtr = hCPU->gpr[3];
+    uint32_t parentActorPtr = hCPU->gpr[4];
+    uint32_t heldIndex = hCPU->gpr[5];
+    bool isHeldByPlayer = hCPU->gpr[6] == 0;
+
+    Weapon weapon = {};
+    readMemory(weaponPtr, &weapon);
+
+    if (isHeldByPlayer) {
+        weapon.setupAttackSensor.resetAttack = 1;
+        weapon.setupAttackSensor.mode = 2;
+        weapon.setupAttackSensor.setContactLayer = 0;
+        writeMemory(weaponPtr, &weapon);
+    }
+}
+
 void CemuHooks::hook_ModifyHandModelAccessSearch(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
 
@@ -137,34 +157,6 @@ void CemuHooks::hook_ModifyHandModelAccessSearch(PPCInterpreter_t* hCPU) {
         Log::print("! Searching for model handle using {}", actorName);
     }
 #endif
-}
-
-
-void CemuHooks::hook_EnableWeaponAttackSensor(PPCInterpreter_t* hCPU) {
-    hCPU->instructionPointer = hCPU->sprNew.LR;
-
-    uint32_t weaponPtr = hCPU->gpr[3];
-    uint32_t parentActorPtr = hCPU->gpr[4];
-    Weapon weapon = {};
-    readMemory(weaponPtr, &weapon);
-
-    // Log::print("! doAttackMaybe - mode {}, flags {:08X}, multiplier {}, scale {}, shieldBreakPower {}, overrideImpact {}, powerForPlayers {}, impact {}, comboCount {}",
-    //     weapon.setupAttackSensor.mode.getLE(),
-    //     weapon.setupAttackSensor.flags.getLE(),
-    //     weapon.setupAttackSensor.multiplier.getLE(),
-    //     weapon.setupAttackSensor.scale.getLE(),
-    //     weapon.setupAttackSensor.shieldBreakPower.getLE(),
-    //     weapon.setupAttackSensor.overrideImpact.getLE(),
-    //     weapon.setupAttackSensor.powerForPlayers.getLE(),
-    //     weapon.setupAttackSensor.impact.getLE(),
-    //     weapon.setupAttackSensor.comboCount.getLE()
-    // );
-
-    weapon.setupAttackSensor.resetAttack = 1;
-    weapon.setupAttackSensor.mode = 2;
-    weapon.setupAttackSensor.setContactLayer = 0;
-
-    writeMemory(weaponPtr, &weapon);
 }
 
 void CemuHooks::hook_CreateNewActor(PPCInterpreter_t* hCPU) {

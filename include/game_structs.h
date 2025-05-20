@@ -87,8 +87,16 @@ struct ActorWiiU {
 };
 
 struct WeaponBase : ActorWiiU {
-    PADDED_BYTES(0x53C, 0x728);
+    PADDED_BYTES(0x53C, 0x5F0);
+    BEType<uint32_t> field_5F4;
+    BEType<uint8_t> isEquippedProbably;
+    BEType<uint8_t> field_5FD;
+    BEType<uint8_t> field_5FE;
+    BEType<uint8_t> field_5FF;
+    PADDED_BYTES(0x600, 0x72C);
 };
+
+static_assert(offsetof(WeaponBase, isEquippedProbably) == 0x5F8, "WeaponBase.isEquippedProbably offset mismatch");
 
 struct Struct20 {
     BEType<uint32_t> __vftable;

@@ -66,7 +66,7 @@ private:
     static void hook_ModifyHandModelAccessSearch(PPCInterpreter_t* hCPU);
     static void hook_ChangeWeaponMtx(PPCInterpreter_t* hCPU);
 
-    // todo: remove this in favour of a better tell when the user is updated
+    // todo: remove this in favour of a better tell when the user is inside a menu
     static void hook_updateCameraOLD(PPCInterpreter_t* hCPU);
     static void hook_BeginCameraSide(PPCInterpreter_t* hCPU);
     static void hook_GetRenderCamera(PPCInterpreter_t* hCPU);

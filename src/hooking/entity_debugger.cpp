@@ -141,7 +141,7 @@ void EntityDebugger::UpdateEntityMemory() {
         auto addMemoryRange = [&](const std::string& name, const uint32_t addressPtr, const uint32_t size) -> void {
             uint32_t address = 0;
             if (CemuHooks::readMemoryBE(addressPtr, &address); address != 0) {
-                // AddOrUpdateEntity(actorId, actorName, name, address, MemoryRange{ address, address + size, std::make_unique<struct MemoryEditor*>() }, true);
+                AddOrUpdateEntity(actorId, actorName, name, address, MemoryRange{ address, address + size, std::make_unique<MemoryEditor>() }, true);
             }
         };
 

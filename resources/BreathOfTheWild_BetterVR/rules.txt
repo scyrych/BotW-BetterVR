@@ -32,6 +32,7 @@ $linkOpacity = 1.0
 name = First-Person Camera (Most Immersive, Standing Recommended)
 category = Camera Mode
 default = 1
+# TODO: use Player->mode_slippingOrTreeClimbing to maybe zoom out when a wall is climbed
 $cameraMode = 1
 $linkOpacity = 0.0
 $cameraDistance = 0.0

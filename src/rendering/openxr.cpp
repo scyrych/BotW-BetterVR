@@ -223,6 +223,8 @@ void OpenXR::CreateActions() {
 
         createAction(m_gameplayActionSet, "ingame_map", "Open/Close Map (Select Button)", XR_ACTION_TYPE_BOOLEAN_INPUT, m_inGame_mapAction);
         createAction(m_gameplayActionSet, "ingame_inventory", "Open/Close Inventory (Start Button)", XR_ACTION_TYPE_BOOLEAN_INPUT, m_inGame_inventoryAction);
+
+        createAction(m_gameplayActionSet, "rumble", "Rumble", XR_ACTION_TYPE_VIBRATION_OUTPUT, m_rumbleAction);
     }
 
     {
@@ -441,9 +443,17 @@ std::optional<OpenXR::InputState> OpenXR::UpdateActions(XrTime predictedFrameTim
 
             if (newState.inGame.pose[side].isActive) {
                 XrSpaceLocation spaceLocation = { XR_TYPE_SPACE_LOCATION };
+                XrSpaceVelocity spaceVelocity = { XR_TYPE_SPACE_VELOCITY };
+                spaceLocation.next = &spaceVelocity;
+                newState.inGame.poseVelocity[side].linearVelocity = { 0.0f, 0.0f, 0.0f };
+                newState.inGame.poseVelocity[side].angularVelocity = { 0.0f, 0.0f, 0.0f };
                 checkXRResult(xrLocateSpace(m_handSpaces[side], m_stageSpace, predictedFrameTime, &spaceLocation), "Failed to get location from controllers!");
                 if ((spaceLocation.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) != 0 && (spaceLocation.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT) != 0) {
                     newState.inGame.poseLocation[side] = spaceLocation;
+
+                    if ((spaceLocation.locationFlags & XR_SPACE_VELOCITY_LINEAR_VALID_BIT) != 0 && (spaceLocation.locationFlags & XR_SPACE_VELOCITY_ANGULAR_VALID_BIT) != 0) {
+                        newState.inGame.poseVelocity[side] = spaceVelocity;
+                    }
                 }
             }
 
