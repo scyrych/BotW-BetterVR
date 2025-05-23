@@ -19,9 +19,9 @@ struct WeaponProfile {
     float chargeTimeRequired;
 };
 
-class WeaponMotionAnalyzer {
+class WeaponMotionAnalyser {
 public:
-    explicit WeaponMotionAnalyzer(WeaponType type) : weaponType(type), profile(GetProfile(type)), lastAttackTime(std::chrono::steady_clock::now()) {}
+    explicit WeaponMotionAnalyser(WeaponType type) : weaponType(type), profile(GetProfile(type)), lastAttackTime(std::chrono::steady_clock::now()) {}
 
     void Update(const glm::vec3& linearVelocity, const glm::quat& orientation) {
         using namespace std::chrono;
@@ -107,6 +107,7 @@ public:
     float GetDamage() const { return damage; }
     float GetImpulse() const { return impulse; }
     AttackType GetAttackType() const { return attackType; }
+    WeaponType GetWeaponType() const { return weaponType; }
 
 private:
     WeaponType weaponType;

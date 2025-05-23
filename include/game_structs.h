@@ -151,7 +151,7 @@ struct AttackSensorInitArg {
     BEType<uint32_t> impact;
     BEType<uint32_t> unk_20;
     BEType<uint32_t> comboCount;
-    BEType<uint8_t> setContactLayer;
+    BEType<uint8_t> isContactLayerInitialized;
     BEType<uint8_t> field_87C;
     BEType<uint8_t> field_87D;
     BEType<uint8_t> field_87E;

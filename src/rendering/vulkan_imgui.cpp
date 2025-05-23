@@ -272,6 +272,7 @@ void RND_Vulkan::ImGuiOverlay::BeginFrame() {
     if (VRManager::instance().Hooks->m_entityDebugger) {
         VRManager::instance().Hooks->m_entityDebugger->DrawEntityInspector();
     }
+    DrawDebugOverlays();
 }
 
 void RND_Vulkan::ImGuiOverlay::Draw3DLayerAsBackground(VkCommandBuffer cb, VkImage srcImage, float aspectRatio) {
@@ -279,7 +280,7 @@ void RND_Vulkan::ImGuiOverlay::Draw3DLayerAsBackground(VkCommandBuffer cb, VkIma
     m_mainFramebuffer->vkPipelineBarrier(cb);
     m_mainFramebuffer->vkTransitionLayout(cb, VK_IMAGE_LAYOUT_GENERAL);
     m_mainFramebuffer->vkClear(cb, { 0.0f, 0.0f, 0.0f, 1.0f });
-    if (VRManager::instance().XR->GetRenderer()->IsRendering3D()) {
+    if (VRManager::instance().XR->GetRenderer()->IsRendering3D() && !CemuHooks::GetSettings().ShowDebugOverlay()) {
         m_mainFramebuffer->vkPipelineBarrier(cb);
         m_mainFramebuffer->vkTransitionLayout(cb, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
         m_mainFramebuffer->vkCopyFromImage(cb, srcImage);

@@ -3,6 +3,8 @@ moduleMatches = 0x6267BFD0
 
 .origin = codecave
 
+0x1046CF88 = Camera__sInstance:
+0x03191B70 = Camera__getLookAtCamera:
 
 changeWeaponMtx:
 lwz r3, 0x58(r1) ; the actor we hackily put on the stack
@@ -21,6 +23,17 @@ stw r6, 0x14(r1)
 stw r7, 0x18(r1)
 stw r8, 0x20(r1)
 stw r9, 0x24(r1)
+stw r10, 0x28(r1)
+
+; get camera from global camera instance
+lis r3, Camera__getLookAtCamera@ha
+addi r3, r3, Camera__getLookAtCamera@l
+mtctr r3
+lis r3, Camera__sInstance@ha
+lwz r3, Camera__sInstance@l(r3)
+bctrl ; bl Camera__getLookAtCamera
+mr. r10, r3 ; move camera to r10
+beq noChangeWeaponMtx
 
 ; call C++ code to change the weapon mtx to the hand mtx
 lwz r3, 0x1C(r1) ; the source actor
@@ -47,6 +60,7 @@ lwz r6, 0x14(r1)
 lwz r7, 0x18(r1)
 lwz r8, 0x20(r1)
 lwz r9, 0x24(r1)
+lwz r10, 0x28(r1)
 
 lwz r0, 0x54(r1)
 mtlr r0

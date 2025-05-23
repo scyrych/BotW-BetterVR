@@ -52,13 +52,10 @@ using Microsoft::WRL::ComPtr;
 #include <implot3d.h>
 
 // glm includes
-#include <glm/ext/matrix_transform.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/matrix_access.hpp>
 #include <glm/gtc/quaternion.hpp>
-#include <glm/gtx/projection.hpp>
-#include <glm/gtx/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 
@@ -390,7 +387,7 @@ struct data_VRSettingsIn {
     }
 
     bool ShowDebugOverlay() const {
-        return enableDebugOverlay == 1;
+        return enableDebugOverlay.getLE() != 0;
     }
 };
 

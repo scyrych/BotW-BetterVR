@@ -154,13 +154,11 @@ void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkDeviceDispatch* pDis
             //     return pDispatch->CmdClearColorImage(commandBuffer, image, imageLayout, pColor, rangeCount, pRanges);
             // }
 
-            if (!layer2D->HasCopied()) {
+            // copy the current 2D framebuffer image that's holding the 2D image, before overwriting the contents with the imgui-rendered 2D view (which combines the left eye view and HUD to create the "regular" 2D image)
+            if (!layer2D->HasCopied() && !CemuHooks::GetSettings().ShowDebugOverlay()) {
                 // only copy the first attempt at capturing when GX2ClearColor is called with this capture index since the game/Cemu clears the 2D layer twice
-                // Log::print("[VULKAN - 2D Layer] Waiting for {} side to be 0", side == OpenXR::EyeSide::LEFT ? "left" : "right");
                 SharedTexture* texture = layer2D->CopyColorToLayer(commandBuffer, image);
                 s_activeCopyOperations.emplace_back(commandBuffer, texture);
-                Log::print("[VULKAN] Queueing up a 2D_COLOR signal inside cmd buffer {} for {} side", (void*)commandBuffer, side == OpenXR::EyeSide::LEFT ? "left" : "right");
-                // Log::print("[VULKAN] Signalling for {} side to be 1", side == OpenXR::EyeSide::LEFT ? "left" : "right");
             }
 
             VulkanUtils::DebugPipelineBarrier(commandBuffer);
@@ -179,6 +177,12 @@ void VkDeviceOverrides::CmdClearColorImage(const vkroots::VkDeviceDispatch* pDis
                 VRManager::instance().VK->m_imguiOverlay->DrawOverlayToImage(commandBuffer, image);
                 VulkanUtils::DebugPipelineBarrier(commandBuffer);
                 VulkanUtils::TransitionLayout(commandBuffer, image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL);
+            }
+
+            if (!layer2D->HasCopied() && CemuHooks::GetSettings().ShowDebugOverlay()) {
+                // only copy the first attempt at capturing when GX2ClearColor is called with this capture index since the game/Cemu clears the 2D layer twice
+                SharedTexture* texture = layer2D->CopyColorToLayer(commandBuffer, image);
+                s_activeCopyOperations.emplace_back(commandBuffer, texture);
             }
 
             // const_cast<VkClearColorValue*>(pColor)[0] = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -213,9 +217,7 @@ void VkDeviceOverrides::CmdClearDepthStencilImage(const vkroots::VkDeviceDispatc
             if (s_curr3DDepthImage == VK_NULL_HANDLE) {
                 lockImageResolutions.lock();
                 if (const auto it = imageResolutions.find(image); it != imageResolutions.end()) {
-                    Log::print("Depth 3: Found depth image {} with format {} for 3D layer", (void*)it->first, it->second.second);
                     if (it->second.second == VK_FORMAT_D32_SFLOAT) {
-                        Log::print(" -> Depth 3: Okay, I resolved the issue, phew");
                         s_curr3DDepthImage = it->first;
                     }
                 }
@@ -243,7 +245,6 @@ void VkDeviceOverrides::CmdClearDepthStencilImage(const vkroots::VkDeviceDispatc
 
             SharedTexture* texture = layer3D->CopyDepthToLayer(side, commandBuffer, image);
             s_activeCopyOperations.emplace_back(commandBuffer, texture);
-            Log::print("[VULKAN] Queueing up a DEPTH signal inside cmd buffer {} for {} side", (void*)commandBuffer, side == OpenXR::EyeSide::LEFT ? "left" : "right");
             return;
         }
     }
@@ -340,9 +341,6 @@ VkResult VkDeviceOverrides::QueueSubmit(const vkroots::VkDeviceDispatch* pDispat
                         UINT size = sizeof(nameChars);
                         it->second->d3d12GetTexture()->GetPrivateData(WKPDID_D3DDebugObjectNameW, &size, nameChars);
                         std::string nameStr = wcharToUtf8(nameChars);
-
-                        Log::print("[VULKAN] Waiting for {} to be 0 inside the cmd buffer {}", nameStr, (void*)submitInfo.pCommandBuffers[j]);
-                        Log::print("[VULKAN] Signalling to {} to be 1 inside the cmd buffer {}", nameStr, (void*)submitInfo.pCommandBuffers[j]);
 #endif
 
                         // signal to D3D12/XR rendering that the shared texture can be rendered to VR headset
