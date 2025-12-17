@@ -34,47 +34,6 @@ static std::pair<glm::quat, glm::quat> swingTwistY(const glm::quat& q) {
 glm::fvec3 s_wsCameraPosition = glm::fvec3();
 glm::fquat s_wsCameraRotation = glm::identity<glm::fquat>();
 
-// 0x18000021 for carrying the electricity balls at least
-// 0x00000010 for ladder
-// 0x00000012 for ladder transition
-// 0x18000002 for jumping
-// 0x00008002 for gliding
-// 0x00000090 for climbing
-enum class PlayerMoveBitFlags : uint32_t {
-    IS_MOVING = 1 << 0,
-    UNK_02 = 1 << 1,
-    UNK_004 = 1 << 2,
-    UNK_008 = 1 << 3,
-    UNK_016 = 1 << 4,
-    UNK_032 = 1 << 5,
-    UNK_064 = 1 << 6,
-    UNK_128 = 1 << 7,
-    UNK_256 = 1 << 8,
-    UNK_512 = 1 << 9,
-    UNK_1024 = 1 << 10,
-    UNK_2048 = 1 << 11,
-    UNK_4096 = 1 << 12,
-    UNK_8192 = 1 << 13,
-    UNK_16384 = 1 << 14,
-    UNK_32768 = 1 << 15,
-    UNK_65536 = 1 << 16,
-    UNK_131072 = 1 << 17,
-    UNK_262144 = 1 << 18,
-    UNK_524288 = 1 << 19,
-    UNK_1048576 = 1 << 20,
-    UNK_2097152 = 1 << 21,
-    UNK_4194304 = 1 << 22,
-    UNK_8388608 = 1 << 23,
-    UNK_16777216 = 1 << 24,
-    UNK_33554432 = 1 << 25,
-    UNK_67108864 = 1 << 26,
-    UNK_134217728 = 1 << 27, // GETS DISABLED WHEN INSIDE A CUTSCENE
-    UNK_268435456 = 1 << 28,
-    UNK_536870912 = 1 << 29,
-    UNK_1073741824 = 1 << 30,
-    GET_HIT_MAYBE_UNABLE_TO_INTERACT = 1u << 31
-};
-
 void CemuHooks::hook_UpdateCameraForGameplay(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
 

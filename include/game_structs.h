@@ -246,6 +246,61 @@ static_assert(sizeof(ActorWeapons) == 0x068, "ActorWeapons size mismatch");
 struct PlayerOrEnemy : DynamicActor, ActorWeapons {
     BEType<float> float834;
 };
+static_assert(sizeof(PlayerOrEnemy) == 0x838, "PlayerOrEnemy size mismatch");
+
+// 0x18000021 for carrying the electricity balls at least
+// 0x00000010 for ladder
+// 0x00000012 for ladder transition
+// 0x18000002 for jumping
+// 0x00008002 for gliding
+// 0x00000090 for climbing
+enum class PlayerMoveBitFlags : uint32_t {
+    IS_MOVING = 1 << 0,
+    UNK_02 = 1 << 1,
+    UNK_004 = 1 << 2,
+    UNK_008 = 1 << 3,
+    UNK_016 = 1 << 4,
+    UNK_032 = 1 << 5,
+    UNK_064 = 1 << 6,
+    UNK_128 = 1 << 7,
+    UNK_256 = 1 << 8,
+    UNK_512 = 1 << 9,
+    UNK_1024 = 1 << 10,
+    UNK_2048 = 1 << 11,
+    UNK_4096 = 1 << 12,
+    UNK_8192 = 1 << 13,
+    UNK_16384 = 1 << 14,
+    UNK_32768 = 1 << 15,
+    UNK_65536 = 1 << 16,
+    UNK_131072 = 1 << 17,
+    UNK_262144 = 1 << 18,
+    UNK_524288 = 1 << 19,
+    UNK_1048576 = 1 << 20,
+    UNK_2097152 = 1 << 21,
+    UNK_4194304 = 1 << 22,
+    UNK_8388608 = 1 << 23,
+    UNK_16777216 = 1 << 24,
+    UNK_33554432 = 1 << 25,
+    UNK_67108864 = 1 << 26,
+    UNK_134217728 = 1 << 27, // GETS DISABLED WHEN INSIDE AN EVENT
+    UNK_268435456 = 1 << 28,
+    UNK_536870912 = 1 << 29,
+    UNK_1073741824 = 1 << 30,
+    GET_HIT_MAYBE_UNABLE_TO_INTERACT = 1u << 31
+};
+
+struct PlayerBase : PlayerOrEnemy {
+    PADDED_BYTES(0x838, 0x8D8);
+    BEType<PlayerMoveBitFlags> moveBitFlags;
+    PADDED_BYTES(0x8E0, 0x12A4);
+};
+static_assert(offsetof(PlayerBase, moveBitFlags) == 0x8DC, "Player.float834 offset mismatch");
+static_assert(sizeof(PlayerBase) == 0x12A8, "PlayerBase size mismatch");
+
+struct Player : PlayerBase {
+    PADDED_BYTES(0x12A8, 0x2524);
+};
+static_assert(sizeof(Player) == 0x2528, "Player size mismatch");
 
 struct WeaponBase : ActorWiiU {
     PADDED_BYTES(0x53C, 0x5F0);
@@ -425,3 +480,125 @@ static_assert(offsetof(ActCamera, origCamMtx) == 0x550, "ActCamera.origCamMtx of
 static_assert(offsetof(ActCamera, finalCamMtx) == 0x5C0, "ActCamera.finalCamMtx offset mismatch");
 
 #pragma pack(pop)
+
+inline std::string contactLayerNames[] = {
+    "EntityObject",
+    "EntitySmallObject",
+    "EntityGroundObject",
+    "EntityPlayer",
+    "EntityNPC",
+    "EntityRagdoll",
+    "EntityWater",
+    "EntityAirWall",
+    "EntityGround",
+    "EntityGroundSmooth",
+    "EntityGroundRough",
+    "EntityRope",
+    "EntityTree",
+    "EntityNPC_NoHitPlayer",
+    "EntityHitOnlyWater",
+    "EntityWallForClimb",
+    "EntityHitOnlyGround",
+    "EntityQueryCustomReceiver",
+    "EntityForbidden18",
+    "EntityNoHit",
+    "EntityMeshVisualizer",
+    "EntityForbidden21",
+    "EntityForbidden22",
+    "EntityForbidden23",
+    "EntityForbidden24",
+    "EntityForbidden25",
+    "EntityForbidden26",
+    "EntityForbidden27",
+    "EntityForbidden28",
+    "EntityForbidden29",
+    "EntityForbidden30",
+    "EntityEnd",
+
+    "SensorObject",
+    "SensorSmallObject",
+    "SensorPlayer",
+    "SensorEnemy",
+    "SensorNPC",
+    "SensorHorse",
+    "SensorRope",
+    "SensorAttackPlayer",
+    "SensorAttackEnemy",
+    "SensorChemical",
+    "SensorTerror",
+    "SensorHitOnlyInDoor",
+    "SensorInDoor",
+    "SensorReserve13",
+    "SensorReserve14",
+    "SensorChemicalElement",
+    "SensorAttackCommon",
+    "SensorQueryOnly",
+    "SensorTree",
+    "SensorCamera",
+    "SensorMeshVisualizer",
+    "SensorNoHit",
+    "SensorReserve20",
+    "SensorCustomReceiver",
+    "SensorEnd"
+};
+
+enum class ContactLayer : uint32_t {
+    EntityObject = 0,
+    EntitySmallObject,
+    EntityGroundObject,
+    EntityPlayer,
+    EntityNPC,
+    EntityRagdoll,
+    EntityWater,
+    EntityAirWall,
+    EntityGround,
+    EntityGroundSmooth,
+    EntityGroundRough,
+    EntityRope,
+    EntityTree,
+    EntityNPC_NoHitPlayer,
+    EntityHitOnlyWater,
+    EntityWallForClimb,
+    EntityHitOnlyGround,
+    EntityQueryCustomReceiver,
+    EntityForbidden18,
+    EntityNoHit,
+    EntityMeshVisualizer,
+    EntityForbidden21,
+    EntityForbidden22,
+    EntityForbidden23,
+    EntityForbidden24,
+    EntityForbidden25,
+    EntityForbidden26,
+    EntityForbidden27,
+    EntityForbidden28,
+    EntityForbidden29,
+    EntityForbidden30,
+    EntityEnd,
+
+    SensorObject,
+    SensorSmallObject,
+    SensorPlayer,
+    SensorEnemy,
+    SensorNPC,
+    SensorHorse,
+    SensorRope,
+    SensorAttackPlayer,
+    SensorAttackEnemy,
+    SensorChemical,
+    SensorTerror,
+    SensorHitOnlyInDoor,
+    SensorInDoor,
+    SensorReserve13,
+    SensorReserve14,
+    SensorChemicalElement,
+    SensorAttackCommon,
+    SensorQueryOnly,
+    SensorTree,
+    SensorCamera,
+    SensorMeshVisualizer,
+    SensorNoHit,
+    SensorReserve20,
+    SensorCustomReceiver,
+    SensorEnd
+};

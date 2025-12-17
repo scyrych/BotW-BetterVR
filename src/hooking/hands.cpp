@@ -217,130 +217,6 @@ void CemuHooks::hook_DropEquipment(PPCInterpreter_t* hCPU) {
 }
 
 
-std::vector<std::string> contactLayerNames = {
-    "EntityObject",
-    "EntitySmallObject",
-    "EntityGroundObject",
-    "EntityPlayer",
-    "EntityNPC",
-    "EntityRagdoll",
-    "EntityWater",
-    "EntityAirWall",
-    "EntityGround",
-    "EntityGroundSmooth",
-    "EntityGroundRough",
-    "EntityRope",
-    "EntityTree",
-    "EntityNPC_NoHitPlayer",
-    "EntityHitOnlyWater",
-    "EntityWallForClimb",
-    "EntityHitOnlyGround",
-    "EntityQueryCustomReceiver",
-    "EntityForbidden18",
-    "EntityNoHit",
-    "EntityMeshVisualizer",
-    "EntityForbidden21",
-    "EntityForbidden22",
-    "EntityForbidden23",
-    "EntityForbidden24",
-    "EntityForbidden25",
-    "EntityForbidden26",
-    "EntityForbidden27",
-    "EntityForbidden28",
-    "EntityForbidden29",
-    "EntityForbidden30",
-    "EntityEnd",
-
-    "SensorObject",
-    "SensorSmallObject",
-    "SensorPlayer",
-    "SensorEnemy",
-    "SensorNPC",
-    "SensorHorse",
-    "SensorRope",
-    "SensorAttackPlayer",
-    "SensorAttackEnemy",
-    "SensorChemical",
-    "SensorTerror",
-    "SensorHitOnlyInDoor",
-    "SensorInDoor",
-    "SensorReserve13",
-    "SensorReserve14",
-    "SensorChemicalElement",
-    "SensorAttackCommon",
-    "SensorQueryOnly",
-    "SensorTree",
-    "SensorCamera",
-    "SensorMeshVisualizer",
-    "SensorNoHit",
-    "SensorReserve20",
-    "SensorCustomReceiver",
-    "SensorEnd"
-};
-
-enum class ContactLayer : uint32_t {
-    EntityObject = 0,
-    EntitySmallObject,
-    EntityGroundObject,
-    EntityPlayer,
-    EntityNPC,
-    EntityRagdoll,
-    EntityWater,
-    EntityAirWall,
-    EntityGround,
-    EntityGroundSmooth,
-    EntityGroundRough,
-    EntityRope,
-    EntityTree,
-    EntityNPC_NoHitPlayer,
-    EntityHitOnlyWater,
-    EntityWallForClimb,
-    EntityHitOnlyGround,
-    EntityQueryCustomReceiver,
-    EntityForbidden18,
-    EntityNoHit,
-    EntityMeshVisualizer,
-    EntityForbidden21,
-    EntityForbidden22,
-    EntityForbidden23,
-    EntityForbidden24,
-    EntityForbidden25,
-    EntityForbidden26,
-    EntityForbidden27,
-    EntityForbidden28,
-    EntityForbidden29,
-    EntityForbidden30,
-    EntityEnd,
-
-    SensorObject,
-    SensorSmallObject,
-    SensorPlayer,
-    SensorEnemy,
-    SensorNPC,
-    SensorHorse,
-    SensorRope,
-    SensorAttackPlayer,
-    SensorAttackEnemy,
-    SensorChemical,
-    SensorTerror,
-    SensorHitOnlyInDoor,
-    SensorInDoor,
-    SensorReserve13,
-    SensorReserve14,
-    SensorChemicalElement,
-    SensorAttackCommon,
-    SensorQueryOnly,
-    SensorTree,
-    SensorCamera,
-    SensorMeshVisualizer,
-    SensorNoHit,
-    SensorReserve20,
-    SensorCustomReceiver,
-    SensorEnd
-};
-
-
-
 void CemuHooks::hook_GetContactLayerOfAttack(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
     if (GetSettings().IsThirdPersonMode()) {
@@ -553,6 +429,8 @@ void CemuHooks::DrawDebugOverlays() {
     ImGui::End();
 }
 
+
+
 void CemuHooks::hook_ModifyBoneMatrix(PPCInterpreter_t* hCPU) {
     hCPU->instructionPointer = hCPU->sprNew.LR;
 
@@ -579,18 +457,6 @@ void CemuHooks::hook_ModifyBoneMatrix(PPCInterpreter_t* hCPU) {
     }
 
     if (boneNamePtr == 0) {
-        // #53 is neck
-        // #90 is
-        // #93 is leg
-        // #106 is left leg
-        // #107 is left ankle
-        // #108 is also left leg
-        // #110 is left foot
-        // #111 is left toes
-        // #112 is right leg
-        // #113 is right ankle
-        // #114 is leg, ankle downwards
-        // #115
         //Log::print("!! Bone name couldn't be found for bone #{} for model {}", boneIdx, modelName.getLE());
         return;
     }
