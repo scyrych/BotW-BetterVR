@@ -84,19 +84,16 @@ RND_Renderer::ImGuiOverlay::ImGuiOverlay(VkCommandBuffer cb, uint32_t width, uin
 
     // load vulkan functions
     checkAssert(ImGui_ImplVulkan_LoadFunctions(VRManager::instance().vkVersion, [](const char* funcName, void* data_queue) {
+        VkInstance instance = VRManager::instance().VK->GetInstance();
         VkDevice device = VRManager::instance().VK->GetDevice();
         PFN_vkVoidFunction addr = VRManager::instance().VK->GetDeviceDispatch()->GetDeviceProcAddr(device, funcName);
 
         if (addr == nullptr) {
-            addr = VRManager::instance().VK->GetInstanceDispatch()->GetInstanceProcAddr(VRManager::instance().VK->GetInstance(), funcName);
-#ifdef _DEBUG
+            addr = VRManager::instance().VK->GetInstanceDispatch()->GetInstanceProcAddr(instance, funcName);
             Log::print<VERBOSE>("Loaded function {} at {} using instance", funcName, (void*)addr);
-#endif
         }
         else {
-#ifdef _DEBUG
             Log::print<VERBOSE>("Loaded function {} at {}", funcName, (void*)addr);
-#endif
         }
 
         return addr;
