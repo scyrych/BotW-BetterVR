@@ -171,7 +171,12 @@ void CemuHooks::hook_InjectXRInput(PPCInterpreter_t* hCPU) {
         newXRBtnHold |= mapXRButtonToVpad(inputs.inGame.cancel, VPAD_BUTTON_B);
 
         newXRBtnHold |= mapXRButtonToVpad(inputs.inGame.useRune, VPAD_BUTTON_L);
-        
+
+        if (leftHandCloseEnoughFromHead && leftHandBehindHead)
+            VRManager::instance().XR->GetRumbleManager()->startSimpleRumble(true, 0.01f, 0.05f, 0.1f);
+        if (rightHandCloseEnoughFromHead && rightHandBehindHead)
+            VRManager::instance().XR->GetRumbleManager()->startSimpleRumble(false, 0.01f, 0.05f, 0.1f);
+
         if (!leftHandCloseEnoughFromHead && !leftHandBehindHead) {
             // Grab
             if (inputs.inGame.grabState[0].lastEvent == ButtonState::Event::ShortPress)
@@ -188,6 +193,7 @@ void CemuHooks::hook_InjectXRInput(PPCInterpreter_t* hCPU) {
         //Throw weapon left hand
         else if (leftHandCloseEnoughFromHead && leftHandBehindHead && inputs.inGame.grabState[0].wasDownLastFrame)
             newXRBtnHold |= VPAD_BUTTON_R;
+
         //Grab
         if (!rightHandCloseEnoughFromHead && !rightHandBehindHead)
         {
