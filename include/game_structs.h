@@ -254,6 +254,7 @@ static_assert(sizeof(PlayerOrEnemy) == 0x838, "PlayerOrEnemy size mismatch");
 // 0x18000002 for jumping
 // 0x00008002 for gliding
 // 0x00000090 for climbing
+// 0x00000410 for swimming (00001000001000000000000000000000)
 enum class PlayerMoveBitFlags : uint32_t {
     IS_MOVING = 1 << 0,
     UNK_02 = 1 << 1,
@@ -265,7 +266,7 @@ enum class PlayerMoveBitFlags : uint32_t {
     UNK_128 = 1 << 7,
     UNK_256 = 1 << 8,
     UNK_512 = 1 << 9,
-    UNK_1024 = 1 << 10,
+    SWIMMING_1024 = 1 << 10,
     UNK_2048 = 1 << 11,
     UNK_4096 = 1 << 12,
     UNK_8192 = 1 << 13,
