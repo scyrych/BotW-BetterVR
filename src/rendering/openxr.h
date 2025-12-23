@@ -74,6 +74,7 @@ public:
                 }
             };
             std::array<ButtonState, 2> grabState; // LEFT/RIGHT
+            ButtonState runState;
             ButtonState mapAndInventoryState;
             std::array<XrActionStatePose, 2> pose;
             std::array<XrSpaceLocation, 2> poseLocation;
