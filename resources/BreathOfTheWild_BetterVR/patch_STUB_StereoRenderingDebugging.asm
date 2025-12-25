@@ -3,12 +3,14 @@ moduleMatches = 0x6267BFD0
 
 .origin = codecave
 
+useStubHooks:
+.int 0
 
 const_cameraHeightChange:
 .float 23
 
 stub_hook_GetRenderCamera:
-blr
+;blr
 lis r11, currentEyeSide@ha
 lwz r11, currentEyeSide@l(r11)
 cmpwi r11, 0

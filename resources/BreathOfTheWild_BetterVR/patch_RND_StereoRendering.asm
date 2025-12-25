@@ -58,7 +58,7 @@ addi r1, r1, 0x10
 mtlr r0
 blr
 
-; use GX2WaitTimeStamp(GX2GetLastSubmittedTimeStamp()) to prevent GPU from being bad
+; use GX2WaitTimeStamp(GX2GetLastSubmittedTimeStamp()) to prevent command buffers from being recycled too early before GX2DrawDone is called at the end of the frame for the right eye
 storedTimestamp:
 .int 0
 .int 0
@@ -772,11 +772,24 @@ lfs f13, const_epsilon@l(r12)
 fcmpu cr0, f12, f13
 bltlr
 
+lis r12, useStubHooks@ha
+lwz r12, useStubHooks@l(r12)
+cmpwi r12, 1
+lis r12, stub_hook_GetRenderCamera@ha
+addi r12, r12, stub_hook_GetRenderCamera@l
+beq getRenderCamera
+lis r12, import.coreinit.hook_GetRenderCamera@ha
+addi r12, r12, import.coreinit.hook_GetRenderCamera@l
+getRenderCamera:
+mtctr r12
+
 lis r11, currentEyeSide@ha
 lwz r11, currentEyeSide@l(r11)
 lis r12, modifiedCopy_seadLookAtCamera@ha
 addi r12, r12, modifiedCopy_seadLookAtCamera@l
-ba import.coreinit.hook_GetRenderCamera
+;beq stub_hook_GetRenderCamera
+;ba import.coreinit.hook_GetRenderCamera
+bctr ; jump to hook_GetRenderCamera
 blr
 
 returnDefaultCamera:
@@ -837,11 +850,22 @@ addi r11, r11, seadPerspectiveProjection_vtbl@l
 cmpw r12, r11
 bnelr
 
+lis r12, useStubHooks@ha
+lwz r12, useStubHooks@l(r12)
+cmpwi r12, 1
+lis r12, stub_hook_GetRenderProjection@ha
+addi r12, r12, stub_hook_GetRenderProjection@l
+beq getRenderProjection
+lis r12, import.coreinit.hook_GetRenderProjection@ha
+addi r12, r12, import.coreinit.hook_GetRenderProjection@l
+getRenderProjection:
+mtctr r12
+
 lis r12, currentEyeSide@ha
 lwz r0, currentEyeSide@l(r12)
 lis r12, modifiedCopy_seadPerspectiveProjection@ha
 addi r12, r12, modifiedCopy_seadPerspectiveProjection@l
-ba import.coreinit.hook_GetRenderProjection
+bctr ; jump to hook_GetRenderProjection
 blr
 
 useSpecialProjection:
