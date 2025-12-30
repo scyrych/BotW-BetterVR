@@ -15,18 +15,23 @@ void BaseVulkanTexture::vkPipelineBarrier(VkCommandBuffer cmdBuffer) {
     return VulkanUtils::DebugPipelineBarrier(cmdBuffer);
 }
 
+VkImageAspectFlags BaseVulkanTexture::GetAspectMask() const {
+    return VulkanUtils::GetAspectMaskForFormat(m_vkFormat);
+}
+
 void BaseVulkanTexture::vkTransitionLayout(VkCommandBuffer cmdBuffer, VkImageLayout newLayout) {
-    VulkanUtils::TransitionLayout(cmdBuffer, m_vkImage, m_vkCurrLayout, newLayout);
+    VulkanUtils::TransitionLayout(cmdBuffer, m_vkImage, m_vkCurrLayout, newLayout, GetAspectMask());
     m_vkCurrLayout = newLayout;
 }
 
 void BaseVulkanTexture::vkCopyToImage(VkCommandBuffer cmdBuffer, VkImage dstImage) {
     auto* dispatch = VRManager::instance().VK->GetDeviceDispatch();
+    VkImageAspectFlags aspectMask = GetAspectMask();
 
     const VkImageCopy region = {
-        .srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+        .srcSubresource = { aspectMask, 0, 0, 1 },
         .srcOffset = { 0, 0, 0 },
-        .dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+        .dstSubresource = { aspectMask, 0, 0, 1 },
         .dstOffset = { 0, 0, 0 },
         .extent = {
             .width = m_width,
@@ -41,6 +46,12 @@ void BaseVulkanTexture::vkCopyToImage(VkCommandBuffer cmdBuffer, VkImage dstImag
 void BaseVulkanTexture::vkClear(VkCommandBuffer cmdBuffer, VkClearColorValue color) {
     auto* dispatch = VRManager::instance().VK->GetDeviceDispatch();
 
+    // Only use CmdClearColorImage for color images
+    if (VulkanUtils::IsDepthFormat(m_vkFormat)) {
+        Log::print<WARNING>("vkClear called on depth image - use vkClearDepth instead");
+        return;
+    }
+
     const VkImageSubresourceRange range = {
         .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
         .baseMipLevel = 0,
@@ -52,13 +63,38 @@ void BaseVulkanTexture::vkClear(VkCommandBuffer cmdBuffer, VkClearColorValue col
     dispatch->CmdClearColorImage(cmdBuffer, m_vkImage, VK_IMAGE_LAYOUT_GENERAL, &color, 1, &range);
 }
 
-void BaseVulkanTexture::vkCopyFromImage(VkCommandBuffer cmdBuffer, VkImage srcImage) {
+void BaseVulkanTexture::vkClearDepth(VkCommandBuffer cmdBuffer, float depth, uint32_t stencil) {
     auto* dispatch = VRManager::instance().VK->GetDeviceDispatch();
 
+    if (!VulkanUtils::IsDepthFormat(m_vkFormat)) {
+        Log::print<WARNING>("vkClearDepth called on color image - use vkClear instead");
+        return;
+    }
+
+    VkClearDepthStencilValue clearValue = {
+        .depth = depth,
+        .stencil = stencil
+    };
+
+    const VkImageSubresourceRange range = {
+        .aspectMask = GetAspectMask(),
+        .baseMipLevel = 0,
+        .levelCount = 1,
+        .baseArrayLayer = 0,
+        .layerCount = 1
+    };
+
+    dispatch->CmdClearDepthStencilImage(cmdBuffer, m_vkImage, VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &range);
+}
+
+void BaseVulkanTexture::vkCopyFromImage(VkCommandBuffer cmdBuffer, VkImage srcImage) {
+    auto* dispatch = VRManager::instance().VK->GetDeviceDispatch();
+    VkImageAspectFlags aspectMask = GetAspectMask();
+
     const VkImageCopy region = {
-        .srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+        .srcSubresource = { aspectMask, 0, 0, 1 },
         .srcOffset = { 0, 0, 0 },
-        .dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+        .dstSubresource = { aspectMask, 0, 0, 1 },
         .dstOffset = { 0, 0, 0 },
         .extent = {
             .width = m_width,
@@ -154,6 +190,10 @@ VulkanFramebuffer::~VulkanFramebuffer() {
 }
 
 Texture::Texture(uint32_t width, uint32_t height, DXGI_FORMAT format): m_d3d12Format(format) {
+    // Use typeless format for depth resources to allow both DSV and SRV creation
+    // This is required for AMD compatibility
+    DXGI_FORMAT resourceFormat = D3D12Utils::IsDepthFormat(format) ? D3D12Utils::ToTypelessDepthFormat(format) : format;
+
     // clang-format off
     D3D12_RESOURCE_DESC textureDesc = {
         .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
@@ -162,7 +202,7 @@ Texture::Texture(uint32_t width, uint32_t height, DXGI_FORMAT format): m_d3d12Fo
         .Height = height,
         .DepthOrArraySize = 1,
         .MipLevels = 1,
-        .Format = format,
+        .Format = resourceFormat,
         .SampleDesc = {
             .Count = 1,
             .Quality = 0
@@ -242,7 +282,7 @@ SharedTexture::SharedTexture(uint32_t width, uint32_t height, VkFormat vkFormat,
     imageCreateInfo.arrayLayers = 1;
     imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    imageCreateInfo.usage = (D3D12Utils::IsDepthFormat(d3d12Format) ? VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    imageCreateInfo.usage = (D3D12Utils::IsDepthFormat(d3d12Format) ? VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     imageCreateInfo.queueFamilyIndexCount = 0;
     imageCreateInfo.pQueueFamilyIndices = nullptr;
@@ -302,17 +342,69 @@ SharedTexture::~SharedTexture() {
 }
 
 void SharedTexture::CopyFromVkImage(VkCommandBuffer cmdBuffer, VkImage srcImage) {
-    this->vkPipelineBarrier(cmdBuffer);
+    auto* dispatch = VRManager::instance().VK->GetDeviceDispatch();
+    bool isDepth = D3D12Utils::IsDepthFormat(this->d3d12GetTexture()->GetDesc().Format);
+    VkImageAspectFlags aspectMask = isDepth ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+
+    // Transition destination image to TRANSFER_DST_OPTIMAL before copy
+    VkImageMemoryBarrier2 preCopyBarrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
+    preCopyBarrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+    preCopyBarrier.srcAccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT;
+    preCopyBarrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+    preCopyBarrier.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+    preCopyBarrier.oldLayout = m_vkCurrLayout;
+    preCopyBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    preCopyBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    preCopyBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    preCopyBarrier.image = this->m_vkImage;
+    preCopyBarrier.subresourceRange = {
+        .aspectMask = aspectMask,
+        .baseMipLevel = 0,
+        .levelCount = 1,
+        .baseArrayLayer = 0,
+        .layerCount = 1
+    };
+
+    VkDependencyInfo preCopyDep = { VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
+    preCopyDep.imageMemoryBarrierCount = 1;
+    preCopyDep.pImageMemoryBarriers = &preCopyBarrier;
+    dispatch->CmdPipelineBarrier2(cmdBuffer, &preCopyDep);
+
+    m_vkCurrLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 
     VkImageCopy copyRegion = {
-        .srcSubresource = { (VkImageAspectFlags)(D3D12Utils::IsDepthFormat(this->d3d12GetTexture()->GetDesc().Format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT), 0, 0, 1 },
+        .srcSubresource = { aspectMask, 0, 0, 1 },
         .srcOffset = { 0, 0, 0 },
-        .dstSubresource = { (VkImageAspectFlags)(D3D12Utils::IsDepthFormat(this->d3d12GetTexture()->GetDesc().Format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT), 0, 0, 1 },
+        .dstSubresource = { aspectMask, 0, 0, 1 },
         .dstOffset = { 0, 0, 0 },
         .extent = { (uint32_t)this->m_d3d12Texture->GetDesc().Width, (uint32_t)this->m_d3d12Texture->GetDesc().Height, 1 }
     };
 
-    VRManager::instance().VK->GetDeviceDispatch()->CmdCopyImage(cmdBuffer, srcImage, VK_IMAGE_LAYOUT_GENERAL, this->m_vkImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+    dispatch->CmdCopyImage(cmdBuffer, srcImage, VK_IMAGE_LAYOUT_GENERAL, this->m_vkImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 
-    this->vkPipelineBarrier(cmdBuffer);
+    // Transition back to GENERAL for D3D12 interop
+    VkImageMemoryBarrier2 postCopyBarrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
+    postCopyBarrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+    postCopyBarrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+    postCopyBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+    postCopyBarrier.dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT;
+    postCopyBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    postCopyBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+    postCopyBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    postCopyBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    postCopyBarrier.image = this->m_vkImage;
+    postCopyBarrier.subresourceRange = {
+        .aspectMask = aspectMask,
+        .baseMipLevel = 0,
+        .levelCount = 1,
+        .baseArrayLayer = 0,
+        .layerCount = 1
+    };
+
+    VkDependencyInfo postCopyDep = { VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
+    postCopyDep.imageMemoryBarrierCount = 1;
+    postCopyDep.pImageMemoryBarriers = &postCopyBarrier;
+    dispatch->CmdPipelineBarrier2(cmdBuffer, &postCopyDep);
+
+    m_vkCurrLayout = VK_IMAGE_LAYOUT_GENERAL;
 }

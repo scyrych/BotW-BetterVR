@@ -13,12 +13,15 @@ public:
     void vkTransitionLayout(VkCommandBuffer cmdBuffer, VkImageLayout newLayout);
 
     void vkClear(VkCommandBuffer cmdBuffer, VkClearColorValue color);
+    void vkClearDepth(VkCommandBuffer cmdBuffer, float depth, uint32_t stencil = 0);
     void vkCopyToImage(VkCommandBuffer cmdBuffer, VkImage dstImage);
     void vkCopyFromImage(VkCommandBuffer cmdBuffer, VkImage srcImage);
     uint32_t GetWidth() const { return m_width; }
     uint32_t GetHeight() const { return m_height; }
+    VkFormat GetFormat() const { return m_vkFormat; }
+    VkImageAspectFlags GetAspectMask() const;
 
-private:
+protected:
     VkImage m_vkImage = VK_NULL_HANDLE;
     VkDeviceMemory m_vkMemory = VK_NULL_HANDLE;
     VkImageLayout m_vkCurrLayout = VK_IMAGE_LAYOUT_UNDEFINED;

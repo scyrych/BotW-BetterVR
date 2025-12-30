@@ -50,6 +50,9 @@ VkResult VRLayer::VkInstanceOverrides::EnumeratePhysicalDevices(const vkroots::V
     std::vector<VkPhysicalDevice> internalDevices(internalCount);
     checkVkResult(pDispatch->EnumeratePhysicalDevices(instance, &internalCount, internalDevices.data()), "Failed to retrieve vulkan physical devices!");
 
+    VkPhysicalDevice matchedDevice = VK_NULL_HANDLE;
+    VkPhysicalDevice fallbackDevice = VK_NULL_HANDLE;
+
     for (const VkPhysicalDevice& device : internalDevices) {
         VkPhysicalDeviceIDProperties deviceId = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES };
         VkPhysicalDeviceProperties2 properties = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
@@ -57,21 +60,41 @@ VkResult VRLayer::VkInstanceOverrides::EnumeratePhysicalDevices(const vkroots::V
         pDispatch->GetPhysicalDeviceProperties2(device, &properties);
 
         if (deviceId.deviceLUIDValid && memcmp(&VRManager::instance().XR->m_capabilities.adapter, deviceId.deviceLUID, VK_LUID_SIZE) == 0) {
-            if (pPhysicalDevices != nullptr) {
-                if (*pPhysicalDeviceCount < 1) {
-                    *pPhysicalDeviceCount = 1;
-                    return VK_INCOMPLETE;
-                }
-                *pPhysicalDeviceCount = 1;
-                pPhysicalDevices[0] = device;
-                return VK_SUCCESS;
-            }
-            else {
-                *pPhysicalDeviceCount = 1;
-                return VK_SUCCESS;
-            }
+            matchedDevice = device;
+            break;
+        }
+
+        // Keep track of the first discrete GPU as fallback for drivers that don't report valid LUIDs
+        if (fallbackDevice == VK_NULL_HANDLE && properties.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
+            fallbackDevice = device;
         }
     }
+
+    // Use matched device, or fallback to first discrete GPU if no LUID match found
+    VkPhysicalDevice selectedDevice = matchedDevice != VK_NULL_HANDLE ? matchedDevice : fallbackDevice;
+
+    // Last resort: use first available device
+    if (selectedDevice == VK_NULL_HANDLE && !internalDevices.empty()) {
+        selectedDevice = internalDevices[0];
+        Log::print<WARNING>("No device matched OpenXR LUID and no discrete GPU found, using first available device");
+    }
+
+    if (selectedDevice != VK_NULL_HANDLE) {
+        if (pPhysicalDevices != nullptr) {
+            if (*pPhysicalDeviceCount < 1) {
+                *pPhysicalDeviceCount = 1;
+                return VK_INCOMPLETE;
+            }
+            *pPhysicalDeviceCount = 1;
+            pPhysicalDevices[0] = selectedDevice;
+            return VK_SUCCESS;
+        }
+        else {
+            *pPhysicalDeviceCount = 1;
+            return VK_SUCCESS;
+        }
+    }
+
     *pPhysicalDeviceCount = 0;
     return VK_SUCCESS;
 }
@@ -127,6 +150,19 @@ const std::vector<std::string> additionalDeviceExtensions = {
 };
 
 VkResult VRLayer::VkInstanceOverrides::CreateDevice(const vkroots::VkInstanceDispatch* pDispatch, VkPhysicalDevice gpu, const VkDeviceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDevice* pDevice) {
+    // Query available extensions for this device
+    uint32_t extensionCount = 0;
+    pDispatch->EnumerateDeviceExtensionProperties(gpu, nullptr, &extensionCount, nullptr);
+    std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+    pDispatch->EnumerateDeviceExtensionProperties(gpu, nullptr, &extensionCount, availableExtensions.data());
+
+    auto isExtensionSupported = [&availableExtensions](const std::string& extName) {
+        return std::find_if(availableExtensions.begin(), availableExtensions.end(),
+            [&extName](const VkExtensionProperties& ext) {
+                return extName == ext.extensionName;
+            }) != availableExtensions.end();
+    };
+
     // Modify VkDevice with needed extensions
     std::vector<const char*> modifiedExtensions;
     for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; i++) {
@@ -134,11 +170,29 @@ VkResult VRLayer::VkInstanceOverrides::CreateDevice(const vkroots::VkInstanceDis
     }
     for (const std::string& extension : additionalDeviceExtensions) {
         if (std::find(modifiedExtensions.begin(), modifiedExtensions.end(), extension) == modifiedExtensions.end()) {
-            modifiedExtensions.push_back(extension.c_str());
+            if (isExtensionSupported(extension)) {
+                modifiedExtensions.push_back(extension.c_str());
+            } else {
+                Log::print<WARNING>("Device extension {} is not supported, skipping", extension);
+            }
         }
     }
 
-    // Test if timeline semaphores are already enabled
+    // Query supported features from the GPU
+    VkPhysicalDeviceTimelineSemaphoreFeatures supportedTimelineSemaphoreFeatures = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES };
+    VkPhysicalDeviceFeatures2 supportedFeatures = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
+    supportedFeatures.pNext = &supportedTimelineSemaphoreFeatures;
+
+#if ENABLE_VK_ROBUSTNESS
+    VkPhysicalDeviceImageRobustnessFeatures supportedImageRobustnessFeatures = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_ROBUSTNESS_FEATURES };
+    VkPhysicalDeviceRobustness2FeaturesEXT supportedRobustness2Features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT };
+    supportedTimelineSemaphoreFeatures.pNext = &supportedImageRobustnessFeatures;
+    supportedImageRobustnessFeatures.pNext = &supportedRobustness2Features;
+#endif
+
+    pDispatch->GetPhysicalDeviceFeatures2(gpu, &supportedFeatures);
+
+    // Test if timeline semaphores are already enabled in the create info
     bool timelineSemaphoresEnabled = false;
     bool imageRobustnessEnabled = false;
     bool robustness2Enabled = false;
@@ -173,20 +227,28 @@ VkResult VRLayer::VkInstanceOverrides::CreateDevice(const vkroots::VkInstanceDis
     void* nextChain = const_cast<void*>(pCreateInfo->pNext);
 
 #if ENABLE_VK_ROBUSTNESS
-    if (!robustness2Enabled) {
-        createRobustness2Features.pNext = nextChain;
-        nextChain = &createRobustness2Features;
+    if (!robustness2Enabled && isExtensionSupported(VK_EXT_ROBUSTNESS_2_EXTENSION_NAME)) {
+        // Only enable features that are actually supported
+        createRobustness2Features.robustBufferAccess2 = supportedRobustness2Features.robustBufferAccess2;
+        createRobustness2Features.robustImageAccess2 = supportedRobustness2Features.robustImageAccess2;
+        createRobustness2Features.nullDescriptor = supportedRobustness2Features.nullDescriptor;
+        if (createRobustness2Features.robustBufferAccess2 || createRobustness2Features.robustImageAccess2 || createRobustness2Features.nullDescriptor) {
+            createRobustness2Features.pNext = nextChain;
+            nextChain = &createRobustness2Features;
+        }
     }
 
-    if (!imageRobustnessEnabled) {
+    if (!imageRobustnessEnabled && isExtensionSupported(VK_EXT_IMAGE_ROBUSTNESS_EXTENSION_NAME) && supportedImageRobustnessFeatures.robustImageAccess) {
         createImageRobustnessFeatures.pNext = nextChain;
         nextChain = &createImageRobustnessFeatures;
     }
 #endif
 
-    if (!timelineSemaphoresEnabled) {
+    if (!timelineSemaphoresEnabled && supportedTimelineSemaphoreFeatures.timelineSemaphore) {
         createSemaphoreFeatures.pNext = nextChain;
         nextChain = &createSemaphoreFeatures;
+    } else if (!timelineSemaphoresEnabled) {
+        Log::print<ERROR>("Timeline semaphores are not supported by this GPU! VR functionality may not work.");
     }
 
     VkDeviceCreateInfo modifiedCreateInfo = { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
