@@ -49,6 +49,7 @@ While more integrated solutions are being found out, there's probably ways to se
 > * Third-person mode (and cutscenes) often has the player being partially/largely invisible.
 > * Our AMD GPU system has a crash after the load screen, which we're working on fixing.
 > * Gravity is higher. Jumping isn't affected, but some shrines might require creative solutions/glitches for now.
+> * Some towers can't be unlocked and cause the cutscene to softlock.
 
 **Audio & Visuals**
 - Slight audio crackling may occur when loading the game or opening menus quickly.
@@ -64,6 +65,7 @@ While more integrated solutions are being found out, there's probably ways to se
 **Traversal & Physics**
 - Exiting the water while swimming can be difficult at certain angles. Swim dashing sometimes doesn't work. 
 - Magnesis & Stasis aim is off-center at far distances. Point your gaze to the **right** of the object to highlight it.
+- Shrine exits require looking at the bottom of the altar from a slight distance before the prompt might appear.
 
 ### Mod Installation
 
@@ -82,9 +84,10 @@ While more integrated solutions are being found out, there's probably ways to se
 4. Double-click on `BetterVR LAUNCH CEMU IN VR.bat` to start Cemu. This'll install the graphic pack automatically to the right folder.
 
 5. Go to `Options`-> `Graphic packs`-> `The Legend of Zelda: Breath of the Wild` and make sure that the graphic pack named `BetterVR` is enabled.
-   This is ALSO where you can change any VR settings like the first/third-person mode etc.
-   **You'll also want to enable the FPS++ graphic pack, or else the game will crash!**
-   **You can't change the BetterVR options while you're in-game.**
+   This is ALSO where you can change any VR settings like the first/third-person mode etc.  
+   **You'll also want to enable the FPS++ graphic pack, or else the game will crash!**  
+   **While you're inside the graphic packs menu, make sure that you've clicked on the Download Community Graphic Packs button to update your graphic packs!**  
+   **You can't change the BetterVR options while you're in-game.**  
 
 6. For an enjoyable experience you should change some other graphic packs in this same window too:
    - `Graphics` graphic pack: Use any (non-ultrawide!) resolution of 1440p (2k) or higher for clarity. Also change anti-aliasing to Nvidia FXAA.
