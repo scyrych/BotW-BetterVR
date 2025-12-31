@@ -1,6 +1,7 @@
 #include "vulkan.h"
 #include "hooking/layer.h"
 #include "instance.h"
+#include "utils/logger.h"
 
 RND_Vulkan::RND_Vulkan(VkInstance vkInstance, VkPhysicalDevice vkPhysDevice, VkDevice vkDevice): m_instance(vkInstance), m_physicalDevice(vkPhysDevice), m_device(vkDevice) {
     m_instanceDispatch = vkroots::tables::LookupInstanceDispatch(vkInstance);

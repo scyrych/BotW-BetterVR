@@ -7,6 +7,7 @@
 #include "rendering/openxr.h"
 #include "rendering/renderer.h"
 #include "rendering/vulkan.h"
+#include "utils/update_checker.h"
 
 class VRManager {
 public:
@@ -22,6 +23,7 @@ public:
         D3D12 = std::make_unique<RND_D3D12>();
         VK = std::make_unique<RND_Vulkan>(instance, physicalDevice, device);
         Log::print<INFO>("Initialized VRManager instance...");
+        UpdateChecker::CheckForUpdates();
     }
 
     void InitSession() {
